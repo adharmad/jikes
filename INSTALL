@@ -1,0 +1,41 @@
+Compiling and Installing Jikes:
+
+./configure ; make ; make install
+
+Windows users will need to have Cygwin
+installed, see the Jikes homepage for
+Cygwin install instructions.
+
+If you want to install jikes into a directory
+other than the default of /usr/local, pass
+a --prefix=DIR argument to the configure script.
+
+If you want to get fancy, you can even build
+jikes in a directory other than the source
+directory. This is really handy if you
+are doing multiple builds or building for
+multiple architectures.
+
+(assume you are starting in the jikes directory)
+cd ..
+
+mkdir build_linux_debug ; cd build_linux_debug
+
+../jikes/configure --prefix=/tmp/jikes_debug CXXFLAGS=-g
+make
+
+
+mkdir build_linux_opt ; cd build_linux_opt
+
+../jikes/configure --prefix=/tmp/jikes_opt CXXFLAGS=-O3
+make
+
+
+You can even cross compile jikes for another architecture
+with a GNU cross compiler. In the following example,
+we cross compile jikes for Windows on a Linux box
+using the mingw cross compiler (i386-mingw32msvc-c++).
+
+mkdir build_mingw ; cd build_mingw
+../jikes/configure --prefix=/tmp/jikes_Xmingw --host=i386-mingw32msvc
+
