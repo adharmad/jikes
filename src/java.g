@@ -1,34 +1,31 @@
 %options scopes,act,an=javaact.cpp,hn=javaact.h,em,tab,gp=c++,
 %options fp=java,escape=$,prefix=TK_,em,defer,output-size=125
-%options hblockb=\:,hblocke=:\
-%options nogoto-default
-%options single-productions
-%options la=2,names=max
--- $Id: java.g,v 1.18 2000/07/22 21:02:51 mdejong Exp $
+%options hblockb=\:,hblocke=:\,nogoto-default,single-productions
+%options la=1,names=max,jikes
+-- $Id: java.g,v 1.48 2004/03/25 13:32:27 ericb Exp $
 -- This software is subject to the terms of the IBM Jikes Compiler
 -- License Agreement available at the following URL:
--- http://www.ibm.com/research/jikes.
--- Copyright (C) 1996, 1999, International Business Machines Corporation
--- and others.  All Rights Reserved.
+-- http://ibm.com/developerworks/opensource/jikes.
+-- Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 -- You must accept the terms of that agreement to use this software.
 
 ------------------------------------------------------------------------
 --
 --                               J A V A
 --
--- This Java grammar is almost identical to the grammar defined in
--- chapter 19 of the Java Language Specification manual together with
--- the additional rules found in the 1.1 document. It is written here
--- in JIKES PG format with semantic actions following each rule. In
--- specifying the rules we enclosed all terminal symbols in single
--- quotes so that they can be quickly distinguished from
--- non-terminals. Optional symbols are suffixed with a question mark (?)
--- and the rules expanding such definitions can be found at the end.
---
--- This grammar is totally faithful to the original rules except that
--- some syntactic markers: PackageHeaderMarker, MethodHeaderMarker and
--- BodyMarker, were added to allow the parser to skip certain irrelevant
--- syntactic components when they are not needed.
+-- This Java grammar started from the grammar defined in chapter 19 of the
+-- first edition of the Java Language Specification manual.  It has since been
+-- updated with several additional rules to cover additional language features,
+-- as well as simplified in places where it makes sense to share code. Comments
+-- are given where this grammar differs from the original. Note that the
+-- second edition JLS grammar (chapter 18) is completely broken.  This grammar
+-- is in JIKES PG format with semantic actions following each rule. In
+-- specifying the rules, the symbols are enclosed in single quotes, and the
+-- keywords are all caps, so that they can be quickly distinguished from
+-- non-terminals. Optional symbols are suffixed with "opt" and the rules
+-- expanding such definitions can be found at the end. Also, some syntactic
+-- markers have been added to aid the parser in skipping irrelevant
+-- components during different parse phases.
 --
 -- The file javaact.h produced by JIKESPG from this file (java.g) contains a
 -- very readable definition of the grammar rules together with their
@@ -66,7 +63,7 @@ $action
 #ifndef HEADERS
     rule_action[$rule_number] = &Parser::Act$rule_number;
 #else
-    void Act$rule_number(void);
+    void Act$rule_number();
 #endif
 ./
 
@@ -74,6 +71,14 @@ $action
 -- These macros are used to initialize the rule_action array
 -- to a specific named function.
 --
+
+$MakeTypeArguments
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeTypeArguments;
+#endif
+./
+
 $MakeArrayType
 /.
 #ifndef HEADERS
@@ -81,17 +86,108 @@ $MakeArrayType
 #endif
 ./
 
-$MakeSimpleName
+$MakeCompilationUnit
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeSimpleName;
+    rule_action[$rule_number] = &Parser::MakeCompilationUnit;
 #endif
 ./
 
-$MakeFieldAccess
+$MakePackageDeclaration
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeFieldAccess;
+    rule_action[$rule_number] = &Parser::MakePackageDeclaration;
+#endif
+./
+
+$MakeImportDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeImportDeclaration;
+#endif
+./
+
+$MakeModifier
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeModifier;
+#endif
+./
+
+$MakeAnnotation
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeAnnotation;
+#endif
+./
+
+$MakeArrayInitializer
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeArrayInitializer;
+#endif
+./
+
+$MakeClassDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeClassDeclaration;
+#endif
+./
+
+$MakeClassBody
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeClassBody;
+#endif
+./
+
+$MakeFieldDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeFieldDeclaration;
+#endif
+./
+
+$MakeMethodDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeMethodDeclaration;
+#endif
+./
+
+$MakeMethodHeader
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeMethodHeader;
+#endif
+./
+
+$MakeMethodDeclarator
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeMethodDeclarator;
+#endif
+./
+
+$MakeFormalParameter
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeFormalParameter;
+#endif
+./
+
+$MakeInitializerDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeInitializerDeclaration;
+#endif
+./
+
+$MakeConstructorDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeConstructorDeclaration;
 #endif
 ./
 
@@ -102,24 +198,45 @@ $MakeQualifiedSuper
 #endif
 ./
 
-$MakeQualifiedNew
+$MakeEnumDeclaration
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeQualifiedNew;
+    rule_action[$rule_number] = &Parser::MakeEnumDeclaration;
 #endif
 ./
 
-$SetSym1ToSym2
+$MakeEnumBody
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::SetSym1ToSym2;
+    rule_action[$rule_number] = &Parser::MakeEnumBody;
 #endif
 ./
 
-$MakeEmptyStatement
+$MakeInterfaceDeclaration
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeEmptyStatement;
+    rule_action[$rule_number] = &Parser::MakeInterfaceDeclaration;
+#endif
+./
+
+$MakeAnnotationTypeDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeAnnotationTypeDeclaration;
+#endif
+./
+
+$MakeAnnotationTypeMemberDeclaration
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeAnnotationTypeMemberDeclaration;
+#endif
+./
+
+$MakeLocalVariable
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeLocalVariable;
 #endif
 ./
 
@@ -144,6 +261,13 @@ $MakeIfThenElseStatement
 #endif
 ./
 
+$MakeSwitchLabel
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeSwitchLabel;
+#endif
+./
+
 $MakeWhileStatement
 /.
 #ifndef HEADERS
@@ -158,24 +282,73 @@ $MakeForStatement
 #endif
 ./
 
-$MakeArrayCreationExpression
+$MakeForeachStatement
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeArrayCreationExpression;
+    rule_action[$rule_number] = &Parser::MakeForeachStatement;
 #endif
 ./
 
-$MakeSuperFieldAccess
+$MakeAssertStatement
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeSuperFieldAccess;
+    rule_action[$rule_number] = &Parser::MakeAssertStatement;
 #endif
 ./
 
-$MakeSuperDoubleFieldAccess
+$MakeTryStatement
 /.
 #ifndef HEADERS
-    rule_action[$rule_number] = &Parser::MakeSuperDoubleFieldAccess;
+    rule_action[$rule_number] = &Parser::MakeTryStatement;
+#endif
+./
+
+$MakeParenthesizedExpression
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeParenthesizedExpression;
+#endif
+./
+
+$MakeClassLiteral
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeClassLiteral;
+#endif
+./
+
+$MakeQualifiedNew
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeQualifiedNew;
+#endif
+./
+
+$MakeArrayCreationUninitialized
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeArrayCreationUninitialized;
+#endif
+./
+
+$MakeArrayCreationInitialized
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeArrayCreationInitialized;
+#endif
+./
+
+$MakeFieldAccess
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeFieldAccess;
+#endif
+./
+
+$MakeMethodInvocation
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeMethodInvocation;
 #endif
 ./
 
@@ -186,10 +359,87 @@ $MakeArrayAccess
 #endif
 ./
 
+$MakePreUnaryExpression
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakePreUnaryExpression;
+#endif
+./
+
 $MakeCastExpression
 /.
 #ifndef HEADERS
     rule_action[$rule_number] = &Parser::MakeCastExpression;
+#endif
+./
+
+$MakeBinaryExpression
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeBinaryExpression;
+#endif
+./
+
+$MakeInstanceofExpression
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeInstanceofExpression;
+#endif
+./
+
+$MakeConditionalExpression
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeConditionalExpression;
+#endif
+./
+
+$MakeWildcard
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeWildcard;
+#endif
+./
+
+$MakeTypeParameter
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeTypeParameter;
+#endif
+./
+
+$MakeTypeBound
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::MakeTypeBound;
+#endif
+./
+
+$SetSym1ToSym2
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::SetSym1ToSym2;
+#endif
+./
+
+$StartList
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::StartList;
+#endif
+./
+
+$AddList2
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::AddList2;
+#endif
+./
+
+$AddList3
+/.
+#ifndef HEADERS
+    rule_action[$rule_number] = &Parser::AddList3;
 #endif
 ./
 
@@ -235,7 +485,7 @@ $shared_NoAction
 //
 // Rule $rule_number:  $rule_text
 //
-// void NoAction(void);
+// void NoAction();
 //./
 
 --
@@ -248,29 +498,81 @@ $shared_NullAction
 //
 // Rule $rule_number:  $rule_text
 //
-// void NullAction(void);
+// void NullAction();
+//./
+
+--
+-- This macro generates a header for a rule that invokes the
+-- StartList routine.
+--
+$shared_StartList
+/.
+
+//
+// Rule $rule_number:  $rule_text
+//
+// void StartList();
+//./
+
+--
+-- This macro generates a header for a rule that invokes the
+-- AddList2 routine.
+--
+$shared_AddList2
+/.
+
+//
+// Rule $rule_number:  $rule_text
+//
+// void AddList2();
+//./
+
+--
+-- This macro generates a header for a rule that invokes the
+-- AddList3 routine.
+--
+$shared_AddList3
+/.
+
+//
+// Rule $rule_number:  $rule_text
+//
+// void AddList3();
+//./
+
+--
+-- This macro generates a header for MakePreUnaryExpression.
+--
+$shared_Unary
+/.
+
+//
+// Rule $rule_number:  $rule_text
+//
+// void MakePreUnaryExpression();
+//./
+--
+-- This macro generates a header for MakeBinaryExpression.
+--
+$shared_Binary
+/.
+
+//
+// Rule $rule_number:  $rule_text
+//
+// void MakeBinaryExpression();
 //./
 
 $Terminals
 
-    BodyMarker
+    abstract assert boolean break byte case catch char class continue
+    default do double else extends false final finally float for
+    if implements import instanceof int interface long native new null
+    package private protected public return short static strictfp super switch
+    synchronized this throw throws transient true try void volatile while
 
-    Identifier
-
-    abstract boolean break byte case catch char class const
-    continue default do double else extends false final finally float
-    for goto if implements import instanceof int
-    interface long native new null package private
-    protected public return short static strictfp super switch
-    synchronized this throw throws transient true try void
-    volatile while
-
-    IntegerLiteral
-    LongLiteral
-    FloatingPointLiteral
-    DoubleLiteral
-    CharacterLiteral
-    StringLiteral
+    Identifier IntegerLiteral LongLiteral FloatLiteral DoubleLiteral
+    CharacterLiteral StringLiteral
 
     PLUS_PLUS
     MINUS_MINUS
@@ -319,9 +621,19 @@ $Terminals
     DOT
     EQUAL
 
+-- This is a special token that allows us to do a 2-pass parse.
+    BodyMarker
+
+-- These tokens will be used in JDK 1.5, but are not used now.
+    enum
+    AT
+    ELLIPSIS
+
+-- These remaining tokens are not used in the grammar.
+    const
+    goto
     ERROR
     EOF
-    EOL
 
 $Alias
 
@@ -347,7 +659,6 @@ $Alias
     '>>>=' ::= UNSIGNED_RIGHT_SHIFT_EQUAL
     '||'   ::= OR_OR
     '&&'   ::= AND_AND
-
     '+'    ::= PLUS
     '-'    ::= MINUS
     '!'    ::= NOT
@@ -373,10 +684,11 @@ $Alias
     '.'    ::= DOT
     '='    ::= EQUAL
 
+    '@'    ::= AT
+    '...'  ::= ELLIPSIS
+
     $EOF   ::= EOF
     $ERROR ::= ERROR
-
-    $EOL   ::= ;
 
 $Start
 
@@ -385,128 +697,173 @@ $Start
 $Rules
 
 \:
+// $Id: java.g,v 1.48 2004/03/25 13:32:27 ericb Exp $ -*- c++ -*-
+// DO NOT MODIFY THIS FILE - it is generated using jikespg on java.g.
 //
 // This software is subject to the terms of the IBM Jikes Compiler Open
 // Source License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
 
 #ifndef HEADERS
 
-#ifdef	HAVE_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
 void Parser::InitRuleAction()
 {
     rule_action[0] = &Parser::BadAction;
-#else
-    void BadAction(void);
-    void NoAction(void);
-    void NullAction(void);
-    void MakeArrayType(void);
-    void MakeSimpleName(void);
-    void MakeFieldAccess(void);
-    void MakeQualifiedSuper(void);
-    void MakeQualifiedNew(void);
-    void SetSym1ToSym2(void);
-    void MakeEmptyStatement(void);
-    void MakeLabeledStatement(void);
-    void MakeExpressionStatement(void);
-    void MakeIfThenElseStatement(void);
-    void MakeWhileStatement(void);
-    void MakeForStatement(void);
-    void MakeArrayCreationExpression(void);
-    void MakeSuperFieldAccess(void);
-    void MakeSuperDoubleFieldAccess(void);
-    void MakeArrayAccess(void);
-    void MakeCastExpression(void);
-#endif
+#else // HEADERS
+    AstTypeName* MakeTypeArguments(int tokennum);
+    AstType* MakeArrayType(int tokennum);
+    AstName* MakeSimpleName(int tokennum);
+    AstModifiers* MakeModifiers();
+    AstTypeParameters* MakeTypeParameters(int tokennum);
+    AstTypeArguments* MakeExplicitTypeArguments(int tokennum);
+    AstBlock* MakeBlock(int tokennum);
+    AstStatement* MakeSwitchBlockStatement(AstListNode* labels,
+                                           AstListNode* statements = NULL);
+    void MakeCastExpression(AstType* type, int tokennum);
+
+    void BadAction();
+    void NoAction();
+    void NullAction();
+    void SetSym1ToSym2();
+    void StartList();
+    void AddList2();
+    void AddList3();
+    void MakeTypeArguments();
+    void MakeArrayType();
+    void MakeCompilationUnit();
+    void MakePackageDeclaration();
+    void MakeImportDeclaration();
+    void MakeModifier();
+    void MakeAnnotation();
+    void MakeArrayInitializer();
+    void MakeClassDeclaration();
+    void MakeClassBody();
+    void MakeMethodDeclaration();
+    void MakeFieldDeclaration();
+    void MakeMethodHeader();
+    void MakeMethodDeclarator();
+    void MakeFormalParameter();
+    void MakeInitializerDeclaration();
+    void MakeConstructorDeclaration();
+    void MakeQualifiedSuper();
+    void MakeEnumDeclaration();
+    void MakeEnumBody();
+    void MakeInterfaceDeclaration();
+    void MakeAnnotationTypeDeclaration();
+    void MakeAnnotationTypeMemberDeclaration();
+    void MakeLocalVariable();
+    void MakeLabeledStatement();
+    void MakeExpressionStatement();
+    void MakeIfThenElseStatement();
+    void MakeSwitchLabel();
+    void MakeWhileStatement();
+    void MakeForStatement();
+    void MakeForeachStatement();
+    void MakeAssertStatement();
+    void MakeTryStatement();
+    void MakeParenthesizedExpression();
+    void MakeClassLiteral();
+    void MakeQualifiedNew();
+    void MakeArrayCreationUninitialized();
+    void MakeArrayCreationInitialized();
+    void MakeFieldAccess();
+    void MakeMethodInvocation();
+    void MakeArrayAccess();
+    void MakePreUnaryExpression();
+    void MakeCastExpression();
+    void MakeBinaryExpression();
+    void MakeInstanceofExpression();
+    void MakeConditionalExpression();
+    void MakeWildcard();
+    void MakeTypeParameter();
+    void MakeTypeBound();
+#endif // HEADERS
 
 :\
 
 /.#line $next_line "$input_file"
+// $Id: java.g,v 1.48 2004/03/25 13:32:27 ericb Exp $
+// DO NOT MODIFY THIS FILE - it is generated using jikespg on java.g.
 //
 // This software is subject to the terms of the IBM Jikes Compiler Open
 // Source License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
 
 #include "platform.h"
 #include "parser.h"
 #include "ast.h"
+#include "stream.h"
 
 #undef HEADERS
 #include "javaact.h"
 
-#ifdef	HAVE_NAMESPACE
-using namespace Jikes;
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
-#ifdef	HAVE_NAMESPACE
-using namespace Jikes;
-#endif
-
-//****************************************************************************//
-//****************************************************************************//
-//*                                                                          *//
-//* Below, we show each rule of the Java grammar together with the semantic  *//
-//* action that is invoked when the parser performs a reduction by that rule.*//
-//*                                                                          *//
-//****************************************************************************//
-//****************************************************************************//
+//**************************************************************************//
+//**************************************************************************//
+//*                                                                        *//
+//* Below, we show each rule of the Java grammar together with the         *//
+//* semantic action that is invoked when the parser performs a reduction   *//
+//* by that rule.                                                          *//
+//**************************************************************************//
+//**************************************************************************//
 
 ./
 
 --18.2 Productions from 2.3: The syntactic Grammar
 
-Goal -> CompilationUnit
+Goal ::= CompilationUnit
 \:$NoAction:\
-/.$location
+/.
+//
+// The parse was bad. Give up now.
+//
+void Parser::BadAction() { assert(false); }
+
+$location
 //
 // Given a rule of the form A ::= x1 x2 ... xn        n >= 1
-//
 // Do nothing - Whatever Ast was produced for x1 is inherited by A.
 //
-void Parser::BadAction(void) { assert(false); }
-void Parser::NoAction(void) {}
+void Parser::NoAction() {}
 ./
 
-Goal ::= BodyMarker ConstructorBody
-\:$action:\
-/.$location
+Goal ::= BodyMarker MethodBody
+\:$SetSym1ToSym2:\
+/.
 //
-// This rule was added to allow the parser to recognize the body of a
-// funtion (constructor or method, as the definition of the body of a
-// method is subsumed by the definition of the body of a constructor)
-// out of context. Note that the artificial terminal BodyMarker is
-// added here to prevent an ordinary parse from accepting a body as
-// a valid input - i.e., to recognize a body out-of-context, the
-// BodyMarker terminal must be inserted in front of the input stream
-// containing the body in question.
+// This next rule was added to allow the parser to recognize the body of a
+// funtion (constructor, method, or initializer) out of context. Note that
+// the artificial terminal BodyMarker is added here to prevent an ordinary
+// parse from accepting a body as a valid input - i.e., to recognize a body
+// out-of-context, the BodyMarker terminal must be inserted in front of the
+// input stream containing the body in question.
+$location
 //
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = Sym(2);
-}
+// Given a rule of the form A ::= x1 x2, inherit the result from x2.
+//
+void Parser::SetSym1ToSym2() { Sym(1) = Sym(2); }
 ./
 
 
 --18.3 Productions from 3: Lexical Structure
---
--- Expand the definition IntegerLiteral and BooleanLiteral
---
 
 Literal ::= IntegerLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewIntegerLiteral(Token(1));
 }
@@ -515,38 +872,38 @@ void Parser::Act$rule_number(void)
 Literal ::= LongLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewLongLiteral(Token(1));
 }
 ./
 
-Literal ::= FloatingPointLiteral
+Literal ::= FloatLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    Sym(1) = ast_pool -> NewFloatingPointLiteral(Token(1));
+    Sym(1) = ast_pool -> NewFloatLiteral(Token(1));
 }
 ./
 
 Literal ::= DoubleLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewDoubleLiteral(Token(1));
 }
 ./
 
-Literal -> BooleanLiteral
+Literal ::= BooleanLiteral
 \:$NoAction:\
 /.$shared_NoAction./
 
 Literal ::= CharacterLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewCharacterLiteral(Token(1));
 }
@@ -555,34 +912,34 @@ void Parser::Act$rule_number(void)
 Literal ::= StringLiteral
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewStringLiteral(Token(1));
 }
 ./
 
-Literal ::= null
+Literal ::= 'null'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewNullLiteral(Token(1));
 }
 ./
 
-BooleanLiteral ::= true
+BooleanLiteral ::= 'true'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewTrueLiteral(Token(1));
 }
 ./
 
-BooleanLiteral ::= false
+BooleanLiteral ::= 'false'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewFalseLiteral(Token(1));
 }
@@ -590,39 +947,39 @@ void Parser::Act$rule_number(void)
 
 --18.4 Productions from 4: Types, Values and Variables
 
-Type -> PrimitiveType
+Type ::= PrimitiveType
 \:$NoAction:\
 /.$shared_NoAction./
 
-Type -> ReferenceType
+Type ::= ReferenceType
 \:$NoAction:\
 /.$shared_NoAction./
 
-PrimitiveType -> NumericType
+PrimitiveType ::= NumericType
 \:$NoAction:\
 /.$shared_NoAction./
 
 PrimitiveType ::= 'boolean'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::BOOLEAN, Token(1));
 }
 ./
 
-NumericType -> IntegralType
+NumericType ::= IntegralType
 \:$NoAction:\
 /.$shared_NoAction./
 
-NumericType -> FloatingPointType
+NumericType ::= FloatingPointType
 \:$NoAction:\
 /.$shared_NoAction./
 
 IntegralType ::= 'byte'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::BYTE, Token(1));
 }
@@ -631,7 +988,7 @@ void Parser::Act$rule_number(void)
 IntegralType ::= 'short'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::SHORT, Token(1));
 }
@@ -640,7 +997,7 @@ void Parser::Act$rule_number(void)
 IntegralType ::= 'int'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::INT, Token(1));
 }
@@ -649,7 +1006,7 @@ void Parser::Act$rule_number(void)
 IntegralType ::= 'long'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::LONG, Token(1));
 }
@@ -658,7 +1015,7 @@ void Parser::Act$rule_number(void)
 IntegralType ::= 'char'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::CHAR, Token(1));
 }
@@ -667,7 +1024,7 @@ void Parser::Act$rule_number(void)
 FloatingPointType ::= 'float'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::FLOAT, Token(1));
 }
@@ -676,844 +1033,1200 @@ void Parser::Act$rule_number(void)
 FloatingPointType ::= 'double'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewPrimitiveType(Ast::DOUBLE, Token(1));
 }
 ./
 
-ReferenceType -> ClassOrInterfaceType
-\:$NoAction:\
-/.$shared_NoAction./
-
-ReferenceType -> ArrayType
-\:$NoAction:\
-/.$shared_NoAction./
-
-ClassOrInterfaceType -> Name
-\:$NoAction:\
-/.$shared_NoAction./
-
 --
--- These rules have been rewritten to avoid some conflicts introduced
--- by adding the 1.1 features
+-- Added rule to make parsing 'void' easier.
 --
--- ArrayType ::= PrimitiveType '[' ']'
--- ArrayType ::= Name '[' ']'
--- ArrayType ::= ArrayType '[' ']'
---
-ArrayType ::= PrimitiveType Dims
-\:$MakeArrayType:\
+VoidType ::= 'void'
+\:$action:\
 /.$location
-void Parser::MakeArrayType(void)
+void Parser::Act$rule_number()
 {
-    AstArrayType *p = ast_pool -> NewArrayType();
-    p -> type     = Sym(1);
-    //
-    // The list of modifiers is guaranteed not empty
-    //
+    Sym(1) = ast_pool -> NewPrimitiveType(Ast::VOID_TYPE, Token(1));
+}
+./
+
+ReferenceType ::= ClassOrInterfaceType
+\:$NoAction:\
+/.$shared_NoAction./
+
+ReferenceType ::= ArrayType
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify.
+--
+--ClassOrInterfaceType ::= ClassType
+--ClassOrInterfaceType ::= InterfaceType
+--ClassType ::= Name
+--InterfaceType ::= Name
+ClassOrInterfaceType ::= ClassOrInterface
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+-- Use of Marker allows us to easily find the closing '>'.
+--
+ClassOrInterfaceType ::= ClassOrInterface '<' TypeArgumentList1 Marker
+\:$MakeTypeArguments:\
+/.$location
+void Parser::MakeTypeArguments() { Sym(1) = MakeTypeArguments(1); }
+
+//
+// Given AstName/AstType '<' TypeArgumentList1 at tokennum, generate the
+// AstTypeName that includes the type arguments. There must be a production at
+// tokennum + 3 to allow finding the closing '>'.
+//
+AstTypeName* Parser::MakeTypeArguments(int tokennum)
+{
+    AstTypeName* p = Sym(tokennum) -> NameCast()
+        ? ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(tokennum)))
+        : DYNAMIC_CAST<AstTypeName*> (Sym(tokennum));
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(tokennum + 2));
+    AstTypeArguments* q =
+        ast_pool -> NewTypeArguments(Token(tokennum + 1),
+                                     Token(tokennum + 3) - 1);
+    q -> AllocateTypeArguments(tail -> index + 1);
+    AstListNode* root = tail;
+    do
     {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateBrackets(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddBrackets((AstBrackets *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
+        root = root -> next;
+        q -> AddTypeArgument(DYNAMIC_CAST<AstType*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    p -> type_arguments_opt = q;
+    return p;
+}
+./
+
+ClassOrInterface ::= Name
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstTypeName* p = ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(1)));
     Sym(1) = p;
 }
 ./
 
+--
+-- Parameterized types were added in JSR 14.
+--
+ClassOrInterface ::= ClassOrInterface '<' TypeArgumentList1 '.' Name
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstTypeName* p = ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(5)));
+    p -> base_opt = MakeTypeArguments(1);
+    Sym(1) = p;
+}
+./
+
+--
+-- These rules have been rewritten to avoid some conflicts introduced
+-- by adding the 1.1 features, and to simplify syntax tree generation.
+--
+-- JLS1 lists:
+--ArrayType ::= PrimitiveType '[' ']'
+--ArrayType ::= Name '[' ']'
+--ArrayType ::= ArrayType '[' ']'
+-- JLS2 lists:
+--ArrayType ::= Type '[' ']'
+--
+ArrayType ::= PrimitiveType Dims
+\:$MakeArrayType:\
+/.$location
+void Parser::MakeArrayType() { Sym(1) = MakeArrayType(1); }
+
+//
+// Used on variants of "Type Dimsopt". If this type has dimensions, make an
+// array type; otherwise return the type name.
+//
+AstType* Parser::MakeArrayType(int tokennum)
+{
+    AstType* p = Sym(tokennum) -> NameCast()
+        ? ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(tokennum)))
+        : DYNAMIC_CAST<AstType*> (Sym(tokennum));
+    return ! Sym(tokennum + 1) ? p
+        : ast_pool -> NewArrayType(p, (DYNAMIC_CAST<AstBrackets*>
+                                       (Sym(tokennum + 1))));
+}
+./
+
+--ArrayType ::= ClassOrInterfaceType Dims
 ArrayType ::= Name Dims
 \:$MakeArrayType:\
 /.$shared_function
 //
-// void MakeArrayType(void);
+// void MakeArrayType();
 //./
 
-ClassType -> ClassOrInterfaceType
-\:$NoAction:\
-/.$shared_NoAction./
-
-InterfaceType -> ClassOrInterfaceType
-\:$NoAction:\
-/.$shared_NoAction./
-
---18.5 Productions from 6: Names
-
-Name -> SimpleName
-\:$NoAction:\
-/.$shared_NoAction./
-
-Name -> QualifiedName
-\:$NoAction:\
-/.$shared_NoAction./
-
-SimpleName ::= 'Identifier'
-\:$MakeSimpleName:\
+--
+-- Parameterized types were added in JSR 14.
+--
+ArrayType ::= ClassOrInterface '<' TypeArgumentList1 '.' Name Dims
+\:$action:\
 /.$location
-void Parser::MakeSimpleName(void)
+void Parser::Act$rule_number()
 {
-    Sym(1) = ast_pool -> NewSimpleName(Token(1));
+    AstTypeName* p = ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(5)));
+    p -> base_opt = MakeTypeArguments(1);
+    Sym(5) = p;
+    Sym(1) = MakeArrayType(5);
 }
 ./
 
-QualifiedName ::= Name '.' 'Identifier'
-\:$MakeFieldAccess:\
+--
+-- Parameterized types were added in JSR 14.
+--
+ArrayType ::= ClassOrInterface '<' TypeArgumentList1 Dims
+\:$action:\
 /.$location
-void Parser::MakeFieldAccess(void)
+void Parser::Act$rule_number()
 {
-    AstFieldAccess *p = ast_pool -> NewFieldAccess();
-    p -> base = (AstExpression *) Sym(1);
-    p -> dot_token = Token(2);
-    p -> identifier_token = Token(3);
+    Sym(3) = MakeTypeArguments(1);
+    Sym(1) = MakeArrayType(3);
+}
+./
+
+--
+-- Simplify the syntax tree.
+--
+--ClassType ::= ClassOrInterfaceType
+--InterfaceType ::= ClassOrInterfaceType
+
+--18.5 Productions from 6: Names
+
+Name ::= 'Identifier'
+\:$action:\
+/.$location
+void Parser::Act$rule_number() { MakeSimpleName(1); }
+
+//
+// Used on "Identifier", and sets the corresponding symbol to a simple name.
+//
+AstName* Parser::MakeSimpleName(int tokennum)
+{
+    AstName* name = ast_pool -> NewName(Token(tokennum));
+    Sym(tokennum) = name;
+    return name;
+}
+./
+
+--
+-- The use of Marker allows us to share code.
+--
+--Name ::= Name '.' 'Identifier'
+Name ::= Name '.' Marker 'Identifier'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstName* p = ast_pool -> NewName(Token(4));
+    p -> base_opt = DYNAMIC_CAST<AstName*> (Sym(1));
     Sym(1) = p;
 }
 ./
 
 --18.6 Productions from 7: Packages
 
-CompilationUnit ::= PackageDeclarationopt ImportDeclarationsopt TypeDeclarationsopt
-\:$action:\
+--
+-- Annotations were added in JSR 175. As a result, we must inline expand
+-- PackageDeclaration vs. TypeDeclaration in order to resolve the ambiguity
+-- between '@A' starting '@A package B;' vs. '@A B{}'.
+--
+--CompilationUnit ::= PackageDeclarationopt ImportDeclarationsopt
+--                    TypeDeclarationsopt
+CompilationUnit ::= PackageDeclaration ImportDeclarationsopt
+                    TypeDeclarationsopt
+\:$MakeCompilationUnit:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeCompilationUnit()
 {
-    AstCompilationUnit *p = ast_pool -> NewCompilationUnit();
-    p -> package_declaration_opt = (AstPackageDeclaration *) Sym(1);
-    if (Sym(2) != NULL)
+    AstCompilationUnit* p = ast_pool -> NewCompilationUnit();
+    p -> package_declaration_opt =
+        DYNAMIC_CAST<AstPackageDeclaration*> (Sym(1));
+    if (Sym(2))
     {
-        AstListNode *tail = (AstListNode *) Sym(2);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
         p -> AllocateImportDeclarations(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddImportDeclaration((AstImportDeclaration *) root -> element);
-        } while(root != tail);
+            p -> AddImportDeclaration(DYNAMIC_CAST<AstImportDeclaration*>
+                                      (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    if (Sym(3) != NULL)
+    if (Sym(3))
     {
-        AstListNode *tail = (AstListNode *) Sym(3);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(3));
         p -> AllocateTypeDeclarations(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddTypeDeclaration(root -> element);
-        } while(root != tail);
+            p -> AddTypeDeclaration(DYNAMIC_CAST<AstDeclaredType*>
+                                    (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     Sym(1) = p;
 }
 ./
 
-ImportDeclarations ::= ImportDeclaration
+--
+-- The use of Marker allows us to share code.
+--
+CompilationUnit ::= Marker ImportDeclarations TypeDeclarationsopt
+\:$MakeCompilationUnit:\
+/.$shared_function
+//
+// void MakeCompilationUnit();
+//./
+
+--
+-- See comments above why this is inline expanded.
+--
+CompilationUnit ::= TypeDeclarationsopt
 \:$action:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstListNode *p = AllocateListNode();
+    Sym(3) = Sym(1);
+    Sym(1) = NULL;
+    Sym(2) = NULL;
+    MakeCompilationUnit();
+}
+./
+
+ImportDeclarations ::= ImportDeclaration
+\:$StartList:\
+/.$location
+//
+// This starts a list containing a single element.
+// Note that the list is circular so as to preserve the order of the elements.
+//
+void Parser::StartList()
+{
+    AstListNode* p = AllocateListNode();
     p -> next = p;
     p -> element = Sym(1);
     p -> index = 0;
-
     Sym(1) = p;
 }
 ./
 
 ImportDeclarations ::= ImportDeclarations ImportDeclaration
-\:$action:\
+\:$AddList2:\
 /.$location
 //
-// Note that the list is circular so as to preserve the order of the elements
+// This adds token 2 to an existing list.
+// Note that the list is circular so as to preserve the order of the elements.
 //
-void Parser::Act$rule_number(void)
+void Parser::AddList2()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(1));
+    AstListNode* p = AllocateListNode();
     p -> element = Sym(2);
     p -> index = tail -> index + 1;
-
     p -> next = tail -> next;
     tail -> next = p;
+    Sym(1) = p;
+}
 
+//
+// This adds token 3 to an existing list (thus, token 2 was a delimiter).
+// Note that the list is circular so as to preserve the order of the elements.
+//
+void Parser::AddList3()
+{
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(1));
+    AstListNode* p = AllocateListNode();
+    p -> element = Sym(3);
+    p -> index = tail -> index + 1;
+    p -> next = tail -> next;
+    tail -> next = p;
     Sym(1) = p;
 }
 ./
+
+ImportDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$location
+//
+// Given a rule of the form A ::= x1 x2 ... xn
+//
+// Construct a NULL Ast for A.
+//
+void Parser::NullAction() { Sym(1) = NULL; }
+./
+
+ImportDeclarationsopt ::= ImportDeclarations
+\:$NoAction:\
+/.$shared_NoAction./
 
 TypeDeclarations ::= TypeDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 TypeDeclarations ::= TypeDeclarations TypeDeclaration
-\:$action:\
+\:$AddList2:\
+/.$shared_AddList2./
+
+TypeDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+TypeDeclarationsopt ::= TypeDeclarations
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- The use of Marker allows us to share code.
+--
+--PackageDeclaration ::= 'package' Name PackageHeaderMarker ';'
+PackageDeclaration ::= Marker 'package' Name PackageHeaderMarker ';'
+\:$MakePackageDeclaration:\
 /.$location
+void Parser::MakePackageDeclaration()
+{
+    AstPackageDeclaration* p = ast_pool -> NewPackageDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> package_token = Token(2);
+    p -> name = DYNAMIC_CAST<AstName*> (Sym(3));
+    p -> semicolon_token = Token(5);
+    Sym(1) = p;
+}
+
 //
-// Note that the list is circular so as to preserve the order of the elements
+// Converts the list at symbol 1 to AstModifiers.
 //
-void Parser::Act$rule_number(void)
+AstModifiers* Parser::MakeModifiers()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
+    if (! Sym(1))
+        return NULL;
+    AstModifiers* p = ast_pool -> NewModifiers();
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(1));
+    p -> AllocateModifiers(tail -> index + 1);
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        if (root -> element -> ModifierKeywordCast())
+        {
+            AstModifierKeyword* mod = (AstModifierKeyword*) root -> element;
+            p -> AddModifier(mod);
+            if (lex_stream -> Kind(mod -> modifier_token) == TK_static)
+                p -> static_token_opt = mod -> modifier_token;
+        }
+        else p -> AddModifier(DYNAMIC_CAST<AstAnnotation*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    return p;
 }
 ./
 
-PackageDeclaration ::= 'package' Name PackageHeaderMarker ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPackageDeclaration *p = ast_pool -> NewPackageDeclaration();
-    p -> package_token   = Token(1);
-    p -> name            = (AstExpression *) Sym(2);
-    p -> semicolon_token = Token(3);
-    Sym(1) = p;
-}
-./
+--
+-- Annotations were added in JSR 175. We must use Modifiers with a semantic
+-- check that no modifier keywords appeared, because of the ambiguity between
+-- '@A @B' starting '@A @B package C;' or '@A @B class C{}'.
+--
+PackageDeclaration ::= Modifiers 'package' Name PackageHeaderMarker ';'
+\:$MakePackageDeclaration:\
+/.$shared_function
+//
+// void MakePackageDeclaration();
+//./
 
-ImportDeclaration -> SingleTypeImportDeclaration
+ImportDeclaration ::= SingleTypeImportDeclaration
 \:$NoAction:\
 /.$shared_NoAction./
 
-ImportDeclaration -> TypeImportOnDemandDeclaration
+ImportDeclaration ::= TypeImportOnDemandDeclaration
 \:$NoAction:\
 /.$shared_NoAction./
 
-SingleTypeImportDeclaration ::= 'import' Name ';'
-\:$action:\
+--
+-- Static imports were added in JSR 201.
+--
+ImportDeclaration ::= SingleStaticImportDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Static imports were added in JSR 201.
+--
+ImportDeclaration ::= StaticImportOnDemandDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Note that semantically, Name must be qualified to be valid (since simple
+-- type names are not in scope). However, the grammar accepts simple names.
+-- The use of Marker allows us to share code.
+--
+--SingleTypeImportDeclaration ::= 'import' TypeName ';'
+SingleTypeImportDeclaration ::= 'import' Marker Name Marker Marker ';'
+\:$MakeImportDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeImportDeclaration()
 {
-    AstImportDeclaration *p = ast_pool -> NewImportDeclaration();
-    p -> import_token    = Token(1);
-    p -> name            = (AstExpression *) Sym(2);
-    p -> star_token_opt  = 0;
-    p -> semicolon_token = Token(3);
+    AstImportDeclaration* p = ast_pool -> NewImportDeclaration();
+    p -> import_token = Token(1);
+    if (Token(3) > Token(2))
+        p -> static_token_opt = Token(2);
+    p -> name = DYNAMIC_CAST<AstName*> (Sym(3));
+    if (Token(6) > Token(5))
+        p -> star_token_opt = Token(5);
+    p -> semicolon_token = Token(6);
     Sym(1) = p;
 }
 ./
 
-TypeImportOnDemandDeclaration ::= 'import' Name '.' '*' ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstImportDeclaration *p = ast_pool -> NewImportDeclaration();
-    p -> import_token         = Token(1);
-    p -> name                 = (AstExpression *) Sym(2);
-    p -> star_token_opt       = Token(4);
-    p -> semicolon_token      = Token(5);
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.
+--
+--TypeImportOnDemandDeclaration ::= 'import' PackageOrTypeName '.' '*' ';'
+TypeImportOnDemandDeclaration ::= 'import' Marker Name '.' '*' ';'
+\:$MakeImportDeclaration:\
+/.$shared_function
+//
+// void MakeImportDeclaration();
+//./
 
-TypeDeclaration -> ClassDeclaration
+--
+-- Static imports were added in JSR 201.
+-- The use of Marker allows us to share code.
+--
+--SingleStaticImportDeclaration ::= 'import' 'static' TypeName '.'
+--                                  'Identifier' ';'
+SingleStaticImportDeclaration ::= 'import' 'static' Name Marker Marker ';'
+\:$MakeImportDeclaration:\
+/.$shared_function
+//
+// void MakeImportDeclaration();
+//./
+
+--
+-- Static imports were added in JSR 201.
+--
+--StaticImportOnDemandDeclaration ::= 'import' 'static' TypeName '.' '*' ';'
+StaticImportOnDemandDeclaration ::= 'import' 'static' Name '.' '*' ';'
+\:$MakeImportDeclaration:\
+/.$shared_function
+//
+// void MakeImportDeclaration();
+//./
+
+TypeDeclaration ::= ClassDeclaration
 \:$NoAction:\
 /.$shared_NoAction./
 
-TypeDeclaration -> InterfaceDeclaration
+--
+-- Enums were added in JSR 201.
+--
+TypeDeclaration ::= EnumDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+TypeDeclaration ::= InterfaceDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+TypeDeclaration ::= AnnotationTypeDeclaration
 \:$NoAction:\
 /.$shared_NoAction./
 
 TypeDeclaration ::= ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewEmptyDeclaration(Token(1));
 }
 ./
 
 --18.7 Only in the LALR(1) Grammar
-
+-- Remember that we do semantic filtering on modifiers, for every context
+-- they can appear in. For better error messages, we also accept all modifiers
+-- for initializer blocks, formal parameters, and local variable declarations.
+--
+--ClassModifiers ::= Modifiers
+--FieldModifiers ::= Modifiers
+--MethodModifiers ::= Modifiers
+--ConstructorModifiers ::= Modifiers
+--InterfaceModifiers ::= Modifiers
+--ConstantModifiers ::= Modifiers
+--AbstractMethodModifiers ::= Modifiers
 Modifiers ::= Modifier
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 Modifiers ::= Modifiers Modifier
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+\:$AddList2:\
+/.$shared_AddList2./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
+Modifiersopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+Modifiersopt ::= Modifiers
+\:$NoAction:\
+/.$shared_NoAction./
 
 Modifier ::= 'public'
-\:$action:\
+\:$MakeModifier:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeModifier()
 {
-    Sym(1) = ast_pool -> NewModifier(Ast::PUBLIC, Token(1));
+    Sym(1) = ast_pool -> NewModifierKeyword(Token(1));
 }
 ./
 
 Modifier ::= 'protected'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::PROTECTED, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'private'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::PRIVATE, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'static'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::STATIC, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'abstract'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::ABSTRACT, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'final'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::FINAL, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'native'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::NATIVE, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'strictfp'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::STRICTFP, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'synchronized'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewModifier(Ast::SYNCHRONIZED, Token(1));
-}
-./
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
 
 Modifier ::= 'transient'
-\:$action:\
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
+
+Modifier ::= 'volatile'
+\:$MakeModifier:\
+/.$shared_function
+//
+// void MakeModifier();
+//./
+
+--
+-- Annotations were added in JSR 175. They are valid anywhere a modifier is,
+-- additionally they are valid on package declarations.
+--
+Modifier ::= Annotation
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+Annotation ::= NormalAnnotation
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+Annotation ::= MarkerAnnotation
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+Annotation ::= SingleMemberAnnotation
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+--NormalAnnotation ::= '@' TypeName '(' MemberValuePairsopt ')'
+NormalAnnotation ::= '@' Name '(' MemberValuePairsopt ')'
+\:$MakeAnnotation:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeAnnotation()
 {
-    Sym(1) = ast_pool -> NewModifier(Ast::TRANSIENT, Token(1));
+    AstAnnotation* p = ast_pool -> NewAnnotation();
+    p -> at_token = Token(1);
+    p -> name = DYNAMIC_CAST<AstName*> (Sym(2));
+    if (Sym(4))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(4));
+        p -> AllocateMemberValuePairs(tail -> index + 1);
+        AstListNode* root = tail;
+        do
+        {
+            root = root -> next;
+            p -> AddMemberValuePair(DYNAMIC_CAST<AstMemberValuePair*>
+                                    (root -> element));
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    if (Token(5) > Token(3))
+        p -> right_paren_token_opt = Token(5);
+    Sym(1) = p;
 }
 ./
 
-Modifier ::= 'volatile'
+--
+-- Annotations were added in JSR 175.
+--
+MemberValuePairs ::= MemberValuePair
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValuePairs ::= MemberValuePairs ',' MemberValuePair
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValuePairsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValuePairsopt ::= MemberValuePairs
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175. We got rid of SimpleName.
+--
+--MemberValuePair ::= SimpleName '=' MemberValue
+MemberValuePair ::= 'Identifier' '=' MemberValue
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    Sym(1) = ast_pool -> NewModifier(Ast::VOLATILE, Token(1));
+    AstMemberValuePair* p = ast_pool -> NewMemberValuePair();
+    p -> identifier_token_opt = Token(1);
+    p -> member_value = DYNAMIC_CAST<AstMemberValue*> (Sym(3));
+    Sym(1) = p;
+}
+./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValue ::= ConditionalExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValue ::= Annotation
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValue ::= MemberValueArrayInitializer
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175. The rule was expanded inline below to
+-- make the grammar LALR(1). The use of Marker allows us to share code.
+--
+--MemberValueArrayInitializer ::= '{' MemberValuesopt ,opt '}'
+MemberValueArrayInitializer ::= '{' Marker ,opt '}'
+\:$MakeArrayInitializer:\
+/.$location
+void Parser::MakeArrayInitializer()
+{
+    AstArrayInitializer* p = ast_pool -> NewArrayInitializer();
+    p -> left_brace_token = Token(1);
+    if (Sym(2))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        p -> AllocateVariableInitializers(tail -> index + 1);
+        AstListNode* root = tail;
+        do
+        {
+            root = root -> next;
+            p -> AddVariableInitializer(DYNAMIC_CAST<AstMemberValue*>
+                                        (root -> element));
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    p -> right_brace_token = Token(4);
+    Sym(1) = p;
+}
+./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValueArrayInitializer ::= '{' MemberValues ,opt '}'
+\:$MakeArrayInitializer:\
+/.$shared_function
+//
+// void MakeArrayInitializer();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValues ::= MemberValue
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Annotations were added in JSR 175.
+--
+MemberValues ::= MemberValues ',' MemberValue
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Annotations were added in JSR 175.
+-- The use of Marker allows us to share code.
+--
+--MarkerAnnotation ::= '@' TypeName
+MarkerAnnotation ::= '@' Name Marker Marker Marker
+\:$MakeAnnotation:\
+/.$shared_function
+//
+// void MakeAnnotation();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+--SingleMemberAnnotation ::= '@' TypeName '(' MemberValue ')'
+SingleMemberAnnotation ::= '@' Name '(' MemberValue ')'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstMemberValuePair* mvp = ast_pool -> NewMemberValuePair();
+    mvp -> member_value = DYNAMIC_CAST<AstMemberValue*> (Sym(4));
+    AstListNode* p = AllocateListNode();
+    p -> next = p;
+    p -> element = mvp;
+    p -> index = 0;
+    Sym(4) = p;
+    MakeAnnotation();
 }
 ./
 
 --18.8 Productions from 8: Class Declarations
---ClassModifier ::=
---      'abstract'
---    | 'final'
---    | 'public'
 --18.8.1 Productions from 8.1: Class Declarations
 
-ClassDeclaration ::= Modifiersopt 'class' 'Identifier' Superopt Interfacesopt ClassBody
-\:$action:\
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity. The use of Marker allows us to share code.
+--
+--ClassDeclaration ::= ClassModifiersopt 'class' 'Identifier' Superopt
+--                     Interfacesopt ClassBody
+ClassDeclaration ::= Marker 'class' 'Identifier' TypeParametersopt
+                     Superopt Interfacesopt ClassBody
+\:$MakeClassDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeClassDeclaration()
 {
-    AstClassDeclaration *p = ast_pool -> NewClassDeclaration();
-    if (Sym(1) != NULL)
+    AstClassDeclaration* p = ast_pool -> NewClassDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> class_token = Token(2);
+    p -> type_parameters_opt = MakeTypeParameters(4);
+    p -> super_opt = DYNAMIC_CAST<AstTypeName*> (Sym(5));
+    if (Sym(6))
     {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateClassModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddClassModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> class_token          = Token(2);
-    p -> identifier_token     = Token(3);
-    p -> super_opt            = (AstExpression *) Sym(4);
-    if (Sym(5) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(5);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(6));
         p -> AllocateInterfaces(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddInterface((AstExpression *) root -> element);
-        } while(root != tail);
+            p -> AddInterface(DYNAMIC_CAST<AstTypeName*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    p -> class_body = (AstClassBody *) Sym(6);
+    p -> class_body = DYNAMIC_CAST<AstClassBody*> (Sym(7));
+    p -> class_body -> identifier_token = Token(3);
+    p -> class_body -> owner = p;
     Sym(1) = p;
+}
+
+//
+// Creates an AstTypeParameters node for insertion into an AstTypeName.
+//
+AstTypeParameters* Parser::MakeTypeParameters(int tokennum)
+{
+    if (! Sym(tokennum))
+        return NULL;
+    AstTypeParameters* p = ast_pool -> NewTypeParameters();
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(tokennum));
+    p -> AllocateTypeParameters(tail -> index + 1);
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        p -> AddTypeParameter(DYNAMIC_CAST<AstTypeParameter*>
+                              (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    p -> right_angle_token = Token(tokennum + 1) - 1;
+    return p;
 }
 ./
 
-Super ::= 'extends' ClassType
-\:$SetSym1ToSym2:\
-/.$location
-void Parser::SetSym1ToSym2(void) { Sym(1) = Sym(2); }
-./
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+ClassDeclaration ::= Modifiers 'class' 'Identifier' TypeParametersopt
+                     Superopt Interfacesopt ClassBody
+\:$MakeClassDeclaration:\
+/.$shared_function
+//
+// void MakeClassDeclaration();
+//./
 
-Interfaces ::= 'implements' InterfaceTypeList
+--
+-- Simplify.
+--
+--Super ::= 'extends' ClassType
+Super ::= 'extends' ClassOrInterfaceType
 \:$SetSym1ToSym2:\
 /.$shared_function
 //
-// void SetSym1ToSym2(void);
+// void SetSym1ToSym2();
 //./
 
-InterfaceTypeList ::= InterfaceType
-\:$action:\
-/.$location
+Superopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+Superopt ::= Super
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify.
+--
+--Interfaces ::= 'implements' InterfaceTypeList
+Interfaces ::= 'implements' TypeList
+\:$SetSym1ToSym2:\
+/.$shared_function
 //
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
+// void SetSym1ToSym2();
+//./
 
-    Sym(1) = p;
-}
-./
+Interfacesopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-InterfaceTypeList ::= InterfaceTypeList ',' InterfaceType
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+Interfacesopt ::= Interfaces
+\:$NoAction:\
+/.$shared_NoAction./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
+--InterfaceTypeList ::= InterfaceType
+--ClassTypeList ::= ClassType
+TypeList ::= ClassOrInterfaceType
+\:$StartList:\
+/.$shared_StartList./
 
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+--InterfaceTypeList ::= InterfaceTypeList ',' InterfaceType
+--ClassTypeList ::= ClassTypeList ',' ClassType
+TypeList ::= TypeList ',' ClassOrInterfaceType
+\:$AddList3:\
+/.$shared_AddList3./
 
 ClassBody ::= '{' ClassBodyDeclarationsopt '}'
-\:$action:\
+\:$MakeClassBody:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeClassBody()
 {
-    AstClassBody *p = ast_pool -> NewClassBody();
+    AstClassBody* p = ast_pool -> NewClassBody();
     if (parse_header_only)
-        p -> mark_unparsed();
+        p -> MarkUnparsed();
 
     p -> left_brace_token = Token(1);
-    if (Sym(2) != NULL)
+    if (Sym(2))
     {
-        int num_instance_variables = 0,
-            num_class_variables = 0,
-            num_methods = 0,
-            num_constructors = 0,
-            num_static_initializers = 0,
-            num_inner_classes = 0,
-            num_inner_interfaces = 0,
-            num_blocks = 0,
-            num_empty_declarations = 0;
+        unsigned num_instance_variables = 0;
+        unsigned num_class_variables = 0;
+        unsigned num_methods = 0;
+        unsigned num_constructors = 0;
+        unsigned num_static_initializers = 0;
+        unsigned num_instance_initializers = 0;
+        unsigned num_inner_classes = 0;
+        unsigned num_inner_enums = 0;
+        unsigned num_inner_interfaces = 0;
+        unsigned num_inner_annotations = 0;
+        unsigned num_empty_declarations = 0;
 
-        AstListNode *tail = (AstListNode *) Sym(2);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
         p -> AllocateClassBodyDeclarations(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddClassBodyDeclaration(root -> element);
-
-            AstFieldDeclaration *field_declaration = root -> element -> FieldDeclarationCast();
+            AstDeclared* declaration =
+                DYNAMIC_CAST<AstDeclared*> (root -> element);
+            AstFieldDeclaration* field_declaration =
+                declaration -> FieldDeclarationCast();
+            AstInitializerDeclaration* initializer =
+                declaration -> InitializerDeclarationCast();
             if (field_declaration)
             {
-                for (int i = 0; i < field_declaration -> NumVariableModifiers(); i++)
+                if (field_declaration -> modifiers_opt &&
+                    field_declaration -> modifiers_opt -> static_token_opt)
                 {
-                    if (field_declaration -> VariableModifier(i) -> kind == Ast::STATIC)
-                    {
-                        field_declaration -> MarkStatic();
-                        break;
-                    }
+                    field_declaration -> MarkStatic();
                 }
+                //
+                // Interface fields were already marked static.
+                //
                 if (field_declaration -> StaticFieldCast())
-                     num_class_variables++;
+                    num_class_variables++;
                 else num_instance_variables++;
             }
-            else if (root -> element -> MethodDeclarationCast())
-            {
+            else if (declaration -> MethodDeclarationCast())
                 num_methods++;
-            }
-            else if (root -> element -> ConstructorDeclarationCast())
-            {
+            else if (declaration -> ConstructorDeclarationCast())
                 num_constructors++;
-            }
-            else if (root -> element -> StaticInitializerCast())
+            else if (initializer)
             {
-                num_static_initializers++;
+                if (initializer -> modifiers_opt &&
+                    initializer -> modifiers_opt -> static_token_opt)
+                {
+                    initializer -> MarkStatic();
+                    num_static_initializers++;
+                }
+                else num_instance_initializers++;
             }
-            else if (root -> element -> ClassDeclarationCast())
-            {
+            else if (declaration -> ClassDeclarationCast())
                 num_inner_classes++;
-            }
-            else if (root -> element -> InterfaceDeclarationCast())
-            {
+            else if (declaration -> EnumDeclarationCast())
+                num_inner_enums++;
+            else if (declaration -> InterfaceDeclarationCast())
                 num_inner_interfaces++;
-            }
-            else if (root -> element -> BlockCast())
-            {
-                num_blocks++;
-            }
+            else if (declaration -> AnnotationDeclarationCast())
+                num_inner_annotations++;
             else num_empty_declarations++;
-        } while(root != tail);
+        } while (root != tail);
 
         p -> AllocateInstanceVariables(num_instance_variables);
         p -> AllocateClassVariables(num_class_variables);
         p -> AllocateMethods(num_methods);
         p -> AllocateConstructors(num_constructors);
         p -> AllocateStaticInitializers(num_static_initializers);
+        p -> AllocateInstanceInitializers(num_instance_initializers);
         p -> AllocateNestedClasses(num_inner_classes);
+        p -> AllocateNestedEnums(num_inner_enums);
         p -> AllocateNestedInterfaces(num_inner_interfaces);
-        p -> AllocateBlocks(num_blocks);
+        p -> AllocateNestedAnnotations(num_inner_annotations);
         p -> AllocateEmptyDeclarations(num_empty_declarations);
 
         root = tail;
         do
         {
             root = root -> next;
-
-            AstFieldDeclaration *field_declaration;
-            AstMethodDeclaration *method_declaration;
-            AstConstructorDeclaration *constructor_declaration;
-            AstStaticInitializer *static_initializer;
-            AstClassDeclaration *class_declaration;
-            AstInterfaceDeclaration *interface_declaration;
-            AstBlock *block;
-
-            if ((field_declaration = root -> element -> FieldDeclarationCast()))
-            {
-                if (field_declaration -> StaticFieldCast())
-                     p -> AddClassVariable(field_declaration);
-                else p -> AddInstanceVariable(field_declaration);
-            }
-            else if ((method_declaration = root -> element -> MethodDeclarationCast()))
-            {
-                p -> AddMethod(method_declaration);
-            }
-            else if ((constructor_declaration = root -> element -> ConstructorDeclarationCast()))
-            {
-                p -> AddConstructor(constructor_declaration);
-            }
-            else if ((static_initializer = root -> element -> StaticInitializerCast()))
-            {
-                p -> AddStaticInitializer(static_initializer);
-            }
-            else if ((class_declaration = root -> element -> ClassDeclarationCast()))
-            {
-                p -> AddNestedClass(class_declaration);
-            }
-            else if ((interface_declaration = root -> element -> InterfaceDeclarationCast()))
-            {
-                p -> AddNestedInterface(interface_declaration);
-            }
-            else if ((block = root -> element -> BlockCast()))
-            {
-                p -> AddBlock(block);
-            }
-            else // assert(block = root -> element -> EmptyDeclarationCast())
-            {
-                p -> AddEmptyDeclaration((AstEmptyDeclaration *) root -> element);
-            }
-        } while(root != tail);
+            p -> AddClassBodyDeclaration(DYNAMIC_CAST<AstDeclared*>
+                                         (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     p -> right_brace_token = Token(3);
-    p -> pool = body_pool; // from now on, this is the storage pool to use for this type
+    // from now on, this is the storage pool to use for this type
+    p -> pool = body_pool;
     Sym(1) = p;
 }
 ./
+
+ClassBodyopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+ClassBodyopt ::= ClassBody
+\:$NoAction:\
+/.$shared_NoAction./
 
 ClassBodyDeclarations ::= ClassBodyDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 ClassBodyDeclarations ::= ClassBodyDeclarations ClassBodyDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+\:$AddList2:\
+/.$shared_AddList2./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
+ClassBodyDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-ClassBodyDeclaration -> ClassMemberDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
-ClassBodyDeclaration -> StaticInitializer
-\:$NoAction:\
-/.$shared_NoAction./
-
-ClassBodyDeclaration -> ConstructorDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
---1.1 feature
-ClassBodyDeclaration ::= MethodHeaderMarker Block
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = Sym(2);
-}
-./
-
-ClassMemberDeclaration -> FieldDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
-ClassMemberDeclaration -> MethodDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
---1.1 feature
-ClassMemberDeclaration -> ClassDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
---1.1 feature
-ClassMemberDeclaration -> InterfaceDeclaration
+ClassBodyDeclarationsopt ::= ClassBodyDeclarations
 \:$NoAction:\
 /.$shared_NoAction./
 
 --
--- Empty declarations are not valid Java ClassMemberDeclarations.
--- However, since the current (2/14/97) Java compiler accepts them
--- (in fact, some of the official tests contain this erroneous
--- syntax), we decided to accept them as valid syntax and flag them
--- as a warning during semantic processing.
+-- Simplify. See below.
 --
-ClassMemberDeclaration ::= ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewEmptyDeclaration(Token(1));
-}
-./
+--ClassBodyDeclaration ::= ClassMemberDeclaration
+
+ClassBodyDeclaration ::= ConstructorDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- For nicer semantic error messages, we lump static and instance initializers
+-- together. Also, we parse arbitrary modifiers, but semantically only accept
+-- static or no modifiers.
+--
+--ClassBodyDeclaration ::= StaticInitializer
+--ClassBodyDeclaration ::= MethodBody
+ClassBodyDeclaration ::= InitializerDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify.
+--
+--ClassMemberDeclaration ::= FieldDeclaration
+ClassBodyDeclaration ::= FieldDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify.
+--
+--ClassMemberDeclaration ::= MethodDeclaration
+ClassBodyDeclaration ::= MethodDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--1.1 feature
+--
+-- Consolidate and simplify.
+--ClassMemberDeclaration ::= ClassDeclaration
+--ClassMemberDeclaration ::= InterfaceDeclaration
+--ClassMemberDeclaration ::= ';'
+--
+ClassBodyDeclaration ::= TypeDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
 
 --18.8.2 Productions from 8.3: Field Declarations
---VariableModifier ::=
---      'public'
---    | 'protected'
---    | 'private'
---    | 'static'
---    | 'final'
---    | 'transient'
---    | 'volatile'
 
-FieldDeclaration ::= Modifiersopt Type VariableDeclarators ';'
-\:$action:\
+--
+-- The use of Marker allows us to share code.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+--FieldDeclaration ::= FieldModifiersopt Type VariableDeclarators ';'
+FieldDeclaration ::= Marker Marker Type VariableDeclarators ';'
+\:$MakeFieldDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeFieldDeclaration()
 {
-    AstFieldDeclaration *p = ast_pool -> NewFieldDeclaration();
-    if (Sym(1) != NULL)
+    AstFieldDeclaration* p = ast_pool -> NewFieldDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> type = DYNAMIC_CAST<AstType*> (Sym(3));
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(4));
+    p -> AllocateVariableDeclarators(tail -> index + 1);
+    AstListNode* root = tail;
+    do
     {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateVariableModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> type = Sym(2);
-    //
-    // The list of declarators is guaranteed not empty
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateVariableDeclarators(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableDeclarator((AstVariableDeclarator *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> semicolon_token      = Token(4);
+        root = root -> next;
+        p -> AddVariableDeclarator(DYNAMIC_CAST<AstVariableDeclarator*>
+                                   (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    p -> semicolon_token = Token(5);
     Sym(1) = p;
 }
 ./
+
+FieldDeclaration ::= Modifiers Marker Type VariableDeclarators ';'
+\:$MakeFieldDeclaration:\
+/.$shared_function
+//
+// void MakeFieldDeclaration();
+//./
 
 VariableDeclarators ::= VariableDeclarator
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 VariableDeclarators ::= VariableDeclarators ',' VariableDeclarator
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+\:$AddList3:\
+/.$shared_AddList3./
 
 VariableDeclarator ::= VariableDeclaratorId
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstVariableDeclarator *p = ast_pool -> NewVariableDeclarator();
-    p -> variable_declarator_name = (AstVariableDeclaratorId *) Sym(1);
-    p -> variable_initializer_opt = NULL;
+    AstVariableDeclarator* p = ast_pool -> NewVariableDeclarator();
+    p -> variable_declarator_name =
+        DYNAMIC_CAST<AstVariableDeclaratorId*> (Sym(1));
     Sym(1) = p;
 }
 ./
@@ -1521,10 +2234,11 @@ void Parser::Act$rule_number(void)
 VariableDeclarator ::= VariableDeclaratorId '=' VariableInitializer
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstVariableDeclarator *p = ast_pool -> NewVariableDeclarator();
-    p -> variable_declarator_name = (AstVariableDeclaratorId *) Sym(1);
+    AstVariableDeclarator* p = ast_pool -> NewVariableDeclarator();
+    p -> variable_declarator_name =
+        DYNAMIC_CAST<AstVariableDeclaratorId*> (Sym(1));
     p -> variable_initializer_opt = Sym(3);
     Sym(1) = p;
 }
@@ -1533,944 +2247,1170 @@ void Parser::Act$rule_number(void)
 VariableDeclaratorId ::= 'Identifier' Dimsopt
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstVariableDeclaratorId *p = ast_pool -> NewVariableDeclaratorId();
+    AstVariableDeclaratorId* p = ast_pool -> NewVariableDeclaratorId();
     p -> identifier_token = Token(1);
-    if (Sym(2) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateBrackets(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddBrackets((AstBrackets *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
+    p -> brackets_opt = DYNAMIC_CAST<AstBrackets*> (Sym(2));
     Sym(1) = p;
 }
 ./
 
-VariableInitializer -> Expression
+VariableInitializer ::= Expression
 \:$NoAction:\
 /.$shared_NoAction./
 
-VariableInitializer -> ArrayInitializer
+VariableInitializer ::= ArrayInitializer
 \:$NoAction:\
 /.$shared_NoAction./
 
 --18.8.3 Productions from 8.4: Method Declarations
---MethodModifier ::=
---      'public'
---    | 'protected'
---    | 'private'
---    | 'static'
---    | 'abstract'
---    | 'final'
---    | 'native'
---    | 'synchronized'
 --
--- The original rule does not contain the "MethodHeaderMarker.
--- See explanation above.
+-- We use "MethodHeaderMarker" to speed up parsing while minimizing memory.
+-- During the first pass, we only care about declarations, so we skip
+-- everything inside { }. On the second pass, we parse only one method at a
+-- time (see the production of Goal above).
 --
--- MethodDeclaration ::= MethodHeader MethodBody
+-- Also, we expanded MethodBody inline to enable the sharing of MethodBody
+-- between methods, constructors, and initializers. Note that MethodBody
+-- can support an explicit constructor call; so it requires semantic filtering.
 --
-
+--MethodDeclaration ::= MethodHeader MethodBody
 MethodDeclaration ::= MethodHeader MethodHeaderMarker MethodBody
-\:$action:\
+\:$MakeMethodDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeMethodDeclaration()
 {
-    ((AstMethodDeclaration *) Sym(1)) -> method_body = (AstStatement *) Sym(3);
+    AstMethodDeclaration* p = DYNAMIC_CAST<AstMethodDeclaration*> (Sym(1));
+    if (Sym(3))
+        p -> method_body_opt = DYNAMIC_CAST<AstMethodBody*> (Sym(3));
+    else p -> semicolon_token_opt = Token(4);
 }
 ./
 
-MethodHeader ::= Modifiersopt Type MethodDeclarator Throwsopt
-\:$action:\
+--
+-- The use of Marker allows us to share code.
+--
+MethodDeclaration ::= MethodHeader MethodHeaderMarker Marker ';'
+\:$MakeMethodDeclaration:\
+/.$shared_function
+//
+// void MakeMethodDeclaration();
+//./
+
+--
+-- The use of Marker allows us to share code.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+--MethodHeader ::= MethodModifiersopt Type MethodDeclarator Throwsopt
+MethodHeader ::= Marker Marker Type MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeMethodHeader()
 {
-    AstMethodDeclaration *p = ast_pool -> NewMethodDeclaration();
-    if (Sym(1) != NULL)
+    AstMethodDeclaration* p = ast_pool -> NewMethodDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> type_parameters_opt = MakeTypeParameters(2);
+    p -> type = DYNAMIC_CAST<AstType*> (Sym(3));
+    p -> method_declarator = DYNAMIC_CAST<AstMethodDeclarator*> (Sym(4));
+    if (Sym(5))
     {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateMethodModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddMethodModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> type              = Sym(2);
-    p -> method_declarator = (AstMethodDeclarator *) Sym(3);
-    if (Sym(4) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(4);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(5));
         p -> AllocateThrows(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddThrow((AstExpression *) root -> element);
-        } while(root != tail);
+            p -> AddThrow(DYNAMIC_CAST<AstTypeName*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     Sym(1) = p;
 }
 ./
 
-MethodHeader ::= Modifiersopt 'void' MethodDeclarator Throwsopt
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstMethodDeclaration *p = ast_pool -> NewMethodDeclaration();
-    if (Sym(1) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateMethodModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddMethodModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> type              = ast_pool -> NewPrimitiveType(Ast::VOID_TYPE, Token(2));
-    p -> method_declarator = (AstMethodDeclarator *) Sym(3);
-    if (Sym(4) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(4);
-        p -> AllocateThrows(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddThrow((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+MethodHeader ::= Modifiers Marker Type MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity. The use of Marker allows us to share code.
+--
+--MethodHeader ::= MethodModifiersopt Type MethodDeclarator Throwsopt
+MethodHeader ::= Marker TypeParameters Type MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+MethodHeader ::= Modifiers TypeParameters Type MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- The use of Marker allows us to share code.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+--MethodHeader ::= MethodModifiersopt 'void' MethodDeclarator Throwsopt
+MethodHeader ::= Marker Marker VoidType MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- The use of Marker allows us to share code.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+MethodHeader ::= Modifiers Marker VoidType MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity. The use of Marker allows us to share code.
+--
+--MethodHeader ::= Modifiersopt 'void' MethodDeclarator Throwsopt
+MethodHeader ::= Marker TypeParameters VoidType MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+MethodHeader ::= Modifiers TypeParameters VoidType MethodDeclarator Throwsopt
+\:$MakeMethodHeader:\
+/.$shared_function
+//
+// void MakeMethodHeader();
+//./
 
 MethodDeclarator ::= 'Identifier' '(' FormalParameterListopt ')' Dimsopt
-\:$action:\
+\:$MakeMethodDeclarator:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeMethodDeclarator()
 {
-    AstMethodDeclarator *p = ast_pool -> NewMethodDeclarator();
-    p -> identifier_token        = Token(1);
-    p -> left_parenthesis_token  = Token(2);
-    if (Sym(3) != NULL)
+    AstMethodDeclarator* p = ast_pool -> NewMethodDeclarator();
+    p -> identifier_token = Token(1);
+    p -> left_parenthesis_token = Token(2);
+    if (Sym(3))
     {
-        AstListNode *tail = (AstListNode *) Sym(3);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(3));
         p -> AllocateFormalParameters(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddFormalParameter((AstFormalParameter *) root -> element);
-        } while(root != tail);
+            p -> AddFormalParameter(DYNAMIC_CAST<AstFormalParameter*>
+                                    (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     p -> right_parenthesis_token = Token(4);
-    if (Sym(5) != NULL)
+    p -> brackets_opt = DYNAMIC_CAST<AstBrackets*> (Sym(5));
+    Sym(1) = p;
+}
+./
+
+--
+-- Varargs were added in JSR 201.
+--
+--FormalParameterList ::= FormalParameter
+FormalParameterList ::= LastFormalParameter
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Varargs were added in JSR 201.
+--
+--FormalParameterList ::= FormalParameterList ',' FormalParameter
+FormalParameterList ::= FormalParameters ',' LastFormalParameter
+\:$AddList3:\
+/.$shared_AddList3./
+
+FormalParameterListopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+FormalParameterListopt ::= FormalParameterList
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Varargs were added in JSR 201.
+--
+FormalParameters ::= FormalParameter
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Varargs were added in JSR 201.
+--
+FormalParameters ::= FormalParameters ',' FormalParameter
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- For nicer error messages, we accept all modifiers, even though only
+-- 'final' and annotations are valid. Also, we must inline expand finalopt
+-- to avoid ambiguity. The use of Marker allows us to share code.
+--
+--FormalParameter ::= finalopt Type VariableDeclaratorId
+FormalParameter ::= Type Marker Marker VariableDeclaratorId
+\:$MakeFormalParameter:\
+/.$location
+void Parser::MakeFormalParameter()
+{
+    AstFormalParameter* p = ast_pool -> NewFormalParameter();
+    if (Sym(2))
     {
-        AstListNode *tail = (AstListNode *) Sym(5);
-        p -> AllocateBrackets(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddBrackets((AstBrackets *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
+        p -> modifiers_opt = MakeModifiers();
+        p -> type = DYNAMIC_CAST<AstType*> (Sym(2));
     }
-    Sym(1) = p;
-}
-./
-
-FormalParameterList ::= FormalParameter
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
-
-FormalParameterList ::= FormalParameterList ',' FormalParameter
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-FormalParameter ::= Type VariableDeclaratorId
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstFormalParameter *p = ast_pool -> NewFormalParameter();
-    p -> type = Sym(1);
-
-    AstVariableDeclarator *formal_declarator = ast_pool -> NewVariableDeclarator();
-    formal_declarator -> variable_declarator_name = (AstVariableDeclaratorId *) Sym(2);
-    formal_declarator -> variable_initializer_opt = NULL;
-
+    else p -> type = DYNAMIC_CAST<AstType*> (Sym(1));
+    if (Token(4) > Token(3))
+        p -> ellipsis_token_opt = Token(3);
+    AstVariableDeclarator* formal_declarator =
+        ast_pool -> NewVariableDeclarator();
+    formal_declarator -> variable_declarator_name =
+        DYNAMIC_CAST<AstVariableDeclaratorId*> (Sym(4));
     p -> formal_declarator = formal_declarator;
-
     Sym(1) = p;
 }
 ./
 
 --1.1 feature
-FormalParameter ::= Modifiers Type VariableDeclaratorId
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstFormalParameter *p = ast_pool -> NewFormalParameter();
-    //
-    // The list of modifiers is guaranteed not empty
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateParameterModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddParameterModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
+--
+-- For nicer error messages, we accept all modifiers, even though only
+-- 'final' and annotations are valid. Also, we must inline expand finalopt
+-- to avoid ambiguity. The use of Marker allows us to share code.
+--
+--FormalParameter ::= final Type VariableDeclaratorId
+FormalParameter ::= Modifiers Type Marker VariableDeclaratorId
+\:$MakeFormalParameter:\
+/.$shared_function
+//
+// void MakeFormalParameter();
+//./
 
-    p -> type = Sym(2);
+--
+-- Varargs were added in JSR 201. We must match the inline expansion of
+-- FormalParameter to avoid ambiguity.
+--
+--LastFormalParameter ::= Modifiersopt Type ...opt VariableDeclaratorId
+LastFormalParameter ::= FormalParameter
+\:$NoAction:\
+/.$shared_NoAction./
 
-    AstVariableDeclarator *formal_declarator = ast_pool -> NewVariableDeclarator();
-    formal_declarator -> variable_declarator_name = (AstVariableDeclaratorId *) Sym(3);
-    formal_declarator -> variable_initializer_opt = NULL;
+--
+-- Varargs were added in JSR 201. The use of Marker allows us to share code.
+--
+LastFormalParameter ::= Type Marker '...' VariableDeclaratorId
+\:$MakeFormalParameter:\
+/.$shared_function
+//
+// void MakeFormalParameter();
+//./
 
-    p -> formal_declarator = formal_declarator;
+--
+-- Varargs were added in JSR 201.
+-- For nicer error messages, we accept all modifiers, even though only
+-- 'final' and annotations are valid.
+--
+LastFormalParameter ::= Modifiers Type '...' VariableDeclaratorId
+\:$MakeFormalParameter:\
+/.$shared_function
+//
+// void MakeFormalParameter();
+//./
 
-    Sym(1) = p;
-}
-./
-
-Throws ::= 'throws' ClassTypeList
+--
+-- Simplify.
+--
+--Throws ::= 'throws' ClassTypeList
+Throws ::= 'throws' TypeList
 \:$SetSym1ToSym2:\
 /.$shared_function
 //
-// void SetSym1ToSym2(void);
+// void SetSym1ToSym2();
 //./
 
-ClassTypeList ::= ClassType
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
+Throwsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    Sym(1) = p;
-}
-./
-
-ClassTypeList ::= ClassTypeList ',' ClassType
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-MethodBody -> Block
+Throwsopt ::= Throws
 \:$NoAction:\
 /.$shared_NoAction./
 
-MethodBody ::= ';'
-\:$MakeEmptyStatement:\
+--
+-- Notice that we filter out an initial explicit constructor invocation,
+-- since we have modified Statement to include this() and super(). Other
+-- explicit constructor calls are ignored now, and flagged as errors
+-- during semantic analysis.
+--
+MethodBody ::= '{' BlockStatementsopt '}'
+\:$action:\
 /.$location
-void Parser::MakeEmptyStatement(void)
+void Parser::Act$rule_number()
 {
-    Sym(1) = ast_pool -> NewEmptyStatement(Token(1));
+    AstMethodBody* p = ast_pool -> NewMethodBody();
+    p -> left_brace_token = Token(1);
+    p -> right_brace_token = Token(3);
+
+    if (Sym(2))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        // Allocate 1 extra for possible generated return statement.
+        p -> AllocateStatements(tail -> index + 2);
+        AstListNode* root = tail -> next;
+        if (root -> element -> IsExplicitConstructorInvocation())
+            p -> explicit_constructor_opt =
+                DYNAMIC_CAST<AstStatement*> (root -> element);
+        else
+            p -> AddStatement(DYNAMIC_CAST<AstStatement*> (root -> element));
+        while (root != tail)
+        {
+            root = root -> next;
+            p -> AddStatement(DYNAMIC_CAST<AstStatement*> (root -> element));
+        }
+        FreeCircularList(tail);
+    }
+    else p -> AllocateStatements(1);
+    Sym(1) = p;
 }
 ./
+
+--
+-- Instead of directly including this rule, we have expanded it inline above.
+--
+--MethodBody ::= ';'
+--
 
 --18.8.4 Productions from 8.5: Static Initializers
-
-StaticInitializer ::= 'static' MethodHeaderMarker Block
-\:$action:\
+--
+-- For nicer error messages, we accept arbitrary modifiers. Thus this rule can
+-- parse static and instance initializers. The use of MethodHeaderMarker
+-- allows the 2-pass parsing. See comments of MethodDeclaration.
+-- The use of Marker allows us to share code.
+--
+--StaticInitializer ::= 'static' MethodBody
+InitializerDeclaration ::= Marker MethodHeaderMarker MethodBody
+\:$MakeInitializerDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeInitializerDeclaration()
 {
-    AstStaticInitializer *p = ast_pool -> NewStaticInitializer();
-    p -> static_token = Token(1);
-    p -> block        = (AstBlock *) Sym(3);
+    AstInitializerDeclaration* p = ast_pool -> NewInitializerDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> block = DYNAMIC_CAST<AstMethodBody*> (Sym(3));
     Sym(1) = p;
 }
 ./
+
+-- For nicer error messages, we accept arbitrary modifiers. Thus this rule can
+-- parse static and instance initializers. The use of MethodHeaderMarker
+-- allows the 2-pass parsing. See comments of MethodDeclaration.
+--
+InitializerDeclaration ::= Modifiers MethodHeaderMarker MethodBody
+\:$MakeInitializerDeclaration:\
+/.$shared_function
+//
+// void MakeInitializerDeclaration();
+//./
 
 --18.8.5 Productions from 8.6: Constructor Declarations
---ConstructorModifier ::=
---      'public'
---    | 'protected'
---    | 'private'
 --
+-- The use of Marker allows us to share code. MethodHeaderMarker allows us to
+-- do 2-pass parsing, and MethodBody was rewritten to handle constructor
+-- bodies. We must inline expand Modifiersopt to avoid ambiguity.
 --
--- The original rule does not contain a "MethodHeaderMarker". See
--- explanation above.
---
--- ConstructorDeclaration ::= Modifiersopt ConstructorDeclarator Throwsopt ConstructorBody
---
-
-ConstructorDeclaration ::= Modifiersopt ConstructorDeclarator Throwsopt MethodHeaderMarker ConstructorBody
-\:$action:\
+--ConstructorDeclaration ::= ConstructorModifiersopt ConstructorDeclarator
+--                           Throwsopt ConstructorBody
+ConstructorDeclaration ::= Marker Marker ConstructorDeclarator Throwsopt
+                           MethodHeaderMarker MethodBody
+\:$MakeConstructorDeclaration:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeConstructorDeclaration()
 {
-    AstConstructorBlock *block = Sym(5) -> ConstructorBlockCast();
-    if (! block)
+    AstConstructorDeclaration* p = ast_pool -> NewConstructorDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> type_parameters_opt = MakeTypeParameters(2);
+    p -> constructor_declarator = DYNAMIC_CAST<AstMethodDeclarator*> (Sym(3));
+    if (Sym(4))
     {
-        block = ast_pool -> NewConstructorBlock();
-        block -> left_brace_token                    = Sym(5) -> LeftToken();
-        block -> explicit_constructor_invocation_opt = NULL;
-        block -> block                               = (AstBlock *) Sym(5);
-        block -> right_brace_token                   = Sym(5) -> RightToken();
-    }
-
-    AstConstructorDeclaration *p = ast_pool -> NewConstructorDeclaration();
-
-    if (Sym(1) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateConstructorModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddConstructorModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> constructor_declarator = (AstMethodDeclarator *) Sym(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(4));
         p -> AllocateThrows(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddThrow((AstExpression *) root -> element);
-        } while(root != tail);
+            p -> AddThrow(DYNAMIC_CAST<AstTypeName*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    p -> constructor_body       = block;
-
+    p -> constructor_body = DYNAMIC_CAST<AstMethodBody*> (Sym(6));
     Sym(1) = p;
 }
 ./
 
 --
--- The original rule specifies SimpleName but it appears to be an
--- error as the rule for a method declarator uses an Identifier.
---...Until further notice, ...
+-- The use of Marker allows us to share code. MethodHeaderMarker allows us to
+-- do 2-pass parsing, and MethodBody was rewritten to handle constructor
+-- bodies. We must inline expand Modifiersopt to avoid ambiguity.
 --
--- ConstructorDeclarator ::= SimpleName '(' FormalParameterListopt ')'
+ConstructorDeclaration ::= Modifiers Marker ConstructorDeclarator Throwsopt
+                           MethodHeaderMarker MethodBody
+\:$MakeConstructorDeclaration:\
+/.$shared_function
+//
+// void MakeConstructorDeclaration();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity. The use of Marker allows us to share code.
+--
+--ConstructorDeclaration ::= ConstructorModifiersopt ConstructorDeclarator
+--                           Throwsopt ConstructorBody
+ConstructorDeclaration ::= Marker TypeParameters ConstructorDeclarator
+                           Throwsopt MethodHeaderMarker MethodBody
+\:$MakeConstructorDeclaration:\
+/.$shared_function
+//
+// void MakeConstructorDeclaration();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+ConstructorDeclaration ::= Modifiers TypeParameters ConstructorDeclarator
+                           Throwsopt MethodHeaderMarker MethodBody
+\:$MakeConstructorDeclaration:\
+/.$shared_function
+//
+// void MakeConstructorDeclaration();
+//./
+
+--
+-- The use of Marker allows us to share code. Also, we got rid of SimpleName.
+--
+--ConstructorDeclarator ::= SimpleName '(' FormalParameterListopt ')'
+ConstructorDeclarator ::= 'Identifier' '(' FormalParameterListopt ')' Marker
+\:$MakeMethodDeclarator:\
+/.$shared_function
+//
+// void MakeMethodDeclarator();
+//./
+
+--
+-- For better error reporting, we have coalesced ExplicitConstructorInvocation
+-- into BlockStatement. Therefore, we do not need a rule for ConstructorBody,
+-- since MethodBody does the same amount of work. During semantic analysis,
+-- we then check calls of an explicit constructor invocation out of context.
+--
+--ConstructorBody ::= '{' ExplicitConstructorInvocationopt
+--                    BlockStatementsopt '}'
 --
 
-ConstructorDeclarator ::= 'Identifier' '(' FormalParameterListopt ')'
+--
+-- Simplify.
+--
+--ExplicitConstructorInvocation ::= 'this' '(' ArgumentListopt ')' ';'
+ExplicitConstructorInvocation ::= 'this' Arguments ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstMethodDeclarator *p = ast_pool -> NewMethodDeclarator();
-    p -> identifier_token        = Token(1);
-    p -> left_parenthesis_token  = Token(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateFormalParameters(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddFormalParameter((AstFormalParameter *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(4);
+    AstThisCall* p = ast_pool -> NewThisCall();
+    p -> this_token = Token(1);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(2));
+    p -> semicolon_token = Token(3);
     Sym(1) = p;
 }
 ./
 
 --
--- NOTE that the rules ExplicitConstructorInvocationopt has been expanded
--- in the rule below in order to make the grammar lalr(1).
+-- Parameterized types were added in JSR 14.
 --
--- ConstructorBody ::= '{' ExplicitConstructorInvocationopt BlockStatementsopt '}'
---
-ConstructorBody -> Block
-\:$NoAction:\
-/.$shared_NoAction./
-
-ConstructorBody ::= '{' ExplicitConstructorInvocation BlockStatementsopt '}'
+ExplicitConstructorInvocation ::= TypeArguments 'this' Arguments ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstBlock *block = ast_pool -> NewBlock();
-    if (Sym(3) != NULL)
+    AstThisCall* p = ast_pool -> NewThisCall();
+    p -> type_arguments_opt = MakeExplicitTypeArguments(1);
+    p -> this_token = Token(2);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(3));
+    p -> semicolon_token = Token(4);
+    Sym(1) = p;
+}
+
+//
+// Given TypeArgumentsopt at tokennum, generate the AstTypeArguments for use
+// in a method call's explicit type arguments. There must be a production
+// at tokennum + 1 to allow finding the closing '>'.
+//
+AstTypeArguments* Parser::MakeExplicitTypeArguments(int tokennum)
+{
+    if (! Sym(tokennum))
+        return NULL;
+    AstTypeArguments* p =
+        ast_pool -> NewTypeArguments(Token(tokennum),
+                                     Token(tokennum + 1) - 1);
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(tokennum));
+    p -> AllocateTypeArguments(tail -> index + 1);
+    AstListNode* root = tail;
+    do
     {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        block -> AllocateBlockStatements(tail -> index + 1);
-        AstListNode *root = tail;
-        block -> left_brace_token  = root -> element -> LeftToken();
-        block -> right_brace_token = tail -> element -> RightToken();
+        root = root -> next;
+        p -> AddTypeArgument(DYNAMIC_CAST<AstType*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    return p;
+}
+./
+
+--
+-- Simplify.
+--
+--ExplicitConstructorInvocation ::= 'super' '(' ArgumentListopt ')' ';'
+ExplicitConstructorInvocation ::= 'super' Arguments ';'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstSuperCall* p = ast_pool -> NewSuperCall();
+    p -> super_token = Token(1);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(2));
+    p -> semicolon_token = Token(3);
+    Sym(1) = p;
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+ExplicitConstructorInvocation ::= TypeArguments 'super' Arguments ';'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstSuperCall* p = ast_pool -> NewSuperCall();
+    p -> type_arguments_opt = MakeExplicitTypeArguments(1);
+    p -> super_token = Token(2);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(3));
+    p -> semicolon_token = Token(4);
+    Sym(1) = p;
+}
+./
+
+--1.1 feature
+--
+-- Parameterized types were added in JSR 14.
+--
+--ExplicitConstructorInvocation ::= Primary '.' 'super' '(' ArgumentListopt ')'
+--                                  ';'
+ExplicitConstructorInvocation ::= Primary '.' TypeArgumentsopt 'super'
+                                  Arguments ';'
+\:$MakeQualifiedSuper:\
+/.$location
+void Parser::MakeQualifiedSuper()
+{
+    AstSuperCall* p = ast_pool -> NewSuperCall();
+    p -> base_opt = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> type_arguments_opt = MakeExplicitTypeArguments(3);
+    p -> super_token = Token(4);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(5));
+    p -> semicolon_token = Token(6);
+    Sym(1) = p;
+}
+./
+
+--1.1 feature
+--
+-- The use of Marker allows us to share code.
+--
+--ExplicitConstructorInvocation ::= Name '.' 'super' '(' ArgumentListopt ')'
+--                                  ';'
+ExplicitConstructorInvocation ::= Name '.' Marker 'super' Arguments ';'
+\:$MakeQualifiedSuper:\
+/.$shared_function
+//
+// void MakeQualifiedSuper();
+//./
+
+--1.1 feature
+--
+-- Parameterized types were added in JSR 14.
+--
+--ExplicitConstructorInvocation ::= Name '.' 'super' '(' ArgumentListopt ')'
+--                                  ';'
+ExplicitConstructorInvocation ::= Name '.' TypeArguments 'super' Arguments ';'
+\:$MakeQualifiedSuper:\
+/.$shared_function
+//
+// void MakeQualifiedSuper();
+//./
+
+--
+-- Enums were added in JSR 201. We must inline expand Modifiersopt to avoid
+-- ambiguity. The use of Marker allows us to share code.
+--
+--EnumDeclaration ::= ClassModifiersopt 'enum' 'Identifier' Interfacesopt
+--                    EnumBody
+EnumDeclaration ::= Marker 'enum' 'Identifier' Interfacesopt EnumBody
+\:$MakeEnumDeclaration:\
+/.$location
+void Parser::MakeEnumDeclaration()
+{
+    //
+    // Because of how we handle EnumConstants, the EnumBody production already
+    // created the AstEnumDeclaration, and populated the class_body field.
+    //
+    AstEnumDeclaration* p = DYNAMIC_CAST<AstEnumDeclaration*> (Sym(5));
+    p -> modifiers_opt = MakeModifiers();
+    p -> enum_token = Token(2);
+    p -> class_body -> identifier_token = Token(3);
+    if (Sym(4))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(4));
+        p -> AllocateInterfaces(tail -> index + 1);
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            block -> AddStatement((AstStatement *) root -> element);
-        } while(root != tail);
+            p -> AddInterface(DYNAMIC_CAST<AstTypeName*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
+    }
+    p -> class_body -> identifier_token = Token(3);
+    Sym(1) = p;
+}
+./
+
+--
+-- Enums were added in JSR 201. We must inline expand Modifiersopt to avoid
+-- ambiguity. The use of Marker allows us to share code.
+--
+EnumDeclaration ::= Modifiers 'enum' 'Identifier' Interfacesopt EnumBody
+\:$MakeEnumDeclaration:\
+/.$shared_function
+//
+// void MakeEnumDeclaration();
+//./
+
+--
+-- Enums were added in JSR 201. The rule was expanded inline below to
+-- make the grammar LALR(1). The use of Marker allows us to share code.
+--
+--EnumBody ::= '{' EnumConstantsopt ,opt EnumBodyDeclarationsopt '}'
+EnumBody ::= '{' Marker ,opt EnumBodyDeclarationsopt '}'
+\:$MakeEnumBody:\
+/.$location
+void Parser::MakeEnumBody()
+{
+    //
+    // The class_body was either created in EnumBodyDeclarations, or we must
+    // generate it here.
+    //
+    AstEnumDeclaration* p = ast_pool -> NewEnumDeclaration();
+    if (Sym(2))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        p -> AllocateEnumConstants(tail -> index + 1);
+        AstListNode* root = tail;
+        do
+        {
+            root = root -> next;
+            p -> AddEnumConstant(DYNAMIC_CAST<AstEnumConstant*>
+                                 (root -> element));
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    if (Sym(4))
+    {
+        p -> class_body = DYNAMIC_CAST<AstClassBody*> (Sym(4));
     }
     else
     {
-        block -> left_brace_token  = Token(4);
-        block -> right_brace_token = Token(4);
+        p -> class_body = ast_pool -> NewClassBody();
+        p -> class_body -> right_brace_token = Token(5);
+        p -> class_body -> pool = body_pool;
     }
-
-    AstConstructorBlock *p = ast_pool -> NewConstructorBlock();
-    p -> left_brace_token                    = Token(1);
-    p -> explicit_constructor_invocation_opt = Sym(2);
-    p -> block                               = block;
-    p -> right_brace_token                   = Token(4);
+    p -> class_body -> left_brace_token = Token(1);
+    p -> class_body -> owner = p;
     Sym(1) = p;
 }
 ./
 
-ExplicitConstructorInvocation ::= 'this' '(' ArgumentListopt ')' ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstThisCall *p = ast_pool -> NewThisCall();
-    p -> base_opt                = NULL;
-    p -> dot_token_opt           = 0;
-    p -> this_token              = Token(1);
-    p -> left_parenthesis_token  = Token(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(4);
-    p -> semicolon_token         = Token(5);
-    Sym(1) = p;
-}
-./
-
-ExplicitConstructorInvocation ::= 'super' '(' ArgumentListopt ')' ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstSuperCall *p = ast_pool -> NewSuperCall();
-    p -> base_opt                = NULL;
-    p -> dot_token_opt           = 0;
-    p -> super_token             = Token(1);
-    p -> left_parenthesis_token  = Token(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(4);
-    p -> semicolon_token         = Token(5);
-    Sym(1) = p;
-}
-./
-
---1.2 feature
-ExplicitConstructorInvocation ::= Primary '.' 'this' '(' ArgumentListopt ')' ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstThisCall *p = ast_pool -> NewThisCall();
-    p -> base_opt               = (AstExpression *) Sym(1);
-    p -> dot_token_opt          = Token(2);
-    p -> this_token             = Token(3);
-    p -> left_parenthesis_token = Token(4);
-    if (Sym(5) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(5);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(6);
-    p -> semicolon_token         = Token(7);
-    Sym(1) = p;
-}
-./
-
---1.1 feature
-ExplicitConstructorInvocation ::= Primary '.' 'super' '(' ArgumentListopt ')' ';'
-\:$MakeQualifiedSuper:\
-/.$location
-void Parser::MakeQualifiedSuper(void)
-{
-    AstSuperCall *p = ast_pool -> NewSuperCall();
-    p -> base_opt                = (AstExpression *) Sym(1);
-    p -> dot_token_opt           = Token(2);
-    p -> super_token             = Token(3);
-    p -> left_parenthesis_token  = Token(4);
-    if (Sym(5) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(5);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(6);
-    p -> semicolon_token         = Token(7);
-    Sym(1) = p;
-}
-./
-
---1.1 feature
-ExplicitConstructorInvocation ::= Name '.' 'super' '(' ArgumentListopt ')' ';'
-\:$MakeQualifiedSuper:\
+--
+-- Enums were added in JSR 201.
+--
+EnumBody ::= '{' EnumConstants ,opt EnumBodyDeclarationsopt '}'
+\:$MakeEnumBody:\
 /.$shared_function
 //
-// void MakeQualifiedSuper(void);
+// void MakeEnumBody();
 //./
 
---18.9 Productions from 9: Interface Declarations
-
---18.9.1 Productions from 9.1: Interface Declarations
---InterfaceModifier ::=
---      'public'
---    | 'abstract'
 --
-InterfaceDeclaration ::= Modifiersopt 'interface' 'Identifier' ExtendsInterfacesopt InterfaceBody
+-- Enums were added in JSR 201.
+--
+EnumConstants ::= EnumConstant
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Enums were added in JSR 201.
+--
+EnumConstants ::= EnumConstants ',' EnumConstant
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Enums were added in JSR 201.
+--
+EnumConstant ::= Modifiersopt 'Identifier' Argumentsopt ClassBodyopt
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstInterfaceDeclaration *p = (AstInterfaceDeclaration *) Sym(5);
-    if (Sym(1) != NULL)
+    AstEnumConstant* p = ast_pool -> NewEnumConstant(Token(2));
+    p -> modifiers_opt = MakeModifiers();
+    p -> arguments_opt = DYNAMIC_CAST<AstArguments*> (Sym(3));
+    p -> class_body_opt = DYNAMIC_CAST<AstClassBody*> (Sym(4));
+    Sym(1) = p;
+}
+./
+
+--
+-- Enums were added in JSR 201. As long as enums introduce this production, we
+-- use it elsewhere, too.
+--
+Arguments ::= '(' ArgumentListopt ')'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstArguments* p = ast_pool -> NewArguments(Token(1), Token(3));
+    if (Sym(2))
     {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateInterfaceModifiers(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        p -> AllocateArguments(tail -> index + 1);
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddInterfaceModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> interface_token  = Token(2);
-    p -> identifier_token = Token(3);
-    if (Sym(4) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(4);
-        p -> AllocateExtendsInterfaces(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddExtendsInterface((AstExpression *) root -> element);
-        } while(root != tail);
+            p -> AddArgument(DYNAMIC_CAST<AstExpression*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     Sym(1) = p;
 }
 ./
 
-ExtendsInterfaces ::= 'extends' InterfaceTypeList
+--
+-- Enums were added in JSR 201.
+--
+Argumentsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Enums were added in JSR 201.
+--
+Argumentsopt ::= Arguments
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Enums were added in JSR 201. The use of Marker allows us to share code.
+--
+--EnumBodyDeclarations ::= ';' ClassBodyDeclarationsopt
+EnumBodyDeclarations ::= ';' ClassBodyDeclarationsopt Marker
+\:$MakeClassBody:\
+/.$shared_function
+//
+// void MakeClassBody();
+//./
+
+--
+-- Enums were added in JSR 201.
+--
+EnumBodyDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Enums were added in JSR 201.
+--
+EnumBodyDeclarationsopt ::= EnumBodyDeclarations
+\:$NoAction:\
+/.$shared_NoAction./
+
+--18.9 Productions from 9: Interface Declarations
+--18.9.1 Productions from 9.1: Interface Declarations
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity. The use of Marker allows us to share code.
+--
+--InterfaceDeclaration ::= InterfaceModifiersopt 'interface' 'Identifier'
+--                         ExtendsInterfacesopt InterfaceBody
+InterfaceDeclaration ::= Marker 'interface' 'Identifier' TypeParametersopt
+                         ExtendsInterfacesopt InterfaceBody
+\:$MakeInterfaceDeclaration:\
+/.$location
+void Parser::MakeInterfaceDeclaration()
+{
+    AstInterfaceDeclaration* p = ast_pool -> NewInterfaceDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> interface_token = Token(2);
+    p -> type_parameters_opt = MakeTypeParameters(4);
+    if (Sym(5))
+    {
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(5));
+        p -> AllocateInterfaces(tail -> index + 1);
+        AstListNode* root = tail;
+        do
+        {
+            root = root -> next;
+            p -> AddInterface(DYNAMIC_CAST<AstTypeName*> (root -> element));
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    p -> class_body = DYNAMIC_CAST<AstClassBody*> (Sym(6));
+    p -> class_body -> identifier_token = Token(3);
+    p -> class_body -> owner = p;
+    Sym(1) = p;
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.  We must inline expand
+-- Modifiersopt to avoid ambiguity.
+--
+InterfaceDeclaration ::= Modifiers 'interface' 'Identifier' TypeParametersopt
+                         ExtendsInterfacesopt InterfaceBody
+\:$MakeInterfaceDeclaration:\
+/.$shared_function
+//
+// void MakeInterfaceDeclaration();
+//./
+
+--
+-- Simplify.
+--
+--ExtendsInterfaces ::= 'extends' InterfaceTypeList
+ExtendsInterfaces ::= 'extends' TypeList
 \:$SetSym1ToSym2:\
 /.$shared_function
 //
-// void SetSym1ToSym2(void);
+// void SetSym1ToSym2();
 //./
 
+ExtendsInterfacesopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+ExtendsInterfacesopt ::= ExtendsInterfaces
+\:$NoAction:\
+/.$shared_NoAction./
+
 InterfaceBody ::= '{' InterfaceMemberDeclarationsopt '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstInterfaceDeclaration *p = ast_pool -> NewInterfaceDeclaration();
-    if (parse_header_only)
-        p -> mark_unparsed();
-
-    p -> left_brace_token = Token(1);
-    if (Sym(2) != NULL)
-    {
-        int num_class_variables = 0,
-            num_methods = 0,
-            num_inner_classes = 0,
-            num_inner_interfaces = 0,
-            num_empty_declarations = 0;
-
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateInterfaceMemberDeclarations(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddInterfaceMemberDeclaration(root -> element);
-
-            AstFieldDeclaration *field_declaration = root -> element -> FieldDeclarationCast();
-            if (field_declaration)
-            {
-                field_declaration -> MarkStatic();
-                num_class_variables++;
-            }
-            else if (root -> element -> MethodDeclarationCast())
-            {
-                num_methods++;
-            }
-            else if (root -> element -> ClassDeclarationCast())
-            {
-                num_inner_classes++;
-            }
-            else if (root -> element -> InterfaceDeclarationCast())
-            {
-                num_inner_interfaces++;
-            }
-            else num_empty_declarations++;
-        } while(root != tail);
-
-        p -> AllocateClassVariables(num_class_variables);
-        p -> AllocateMethods(num_methods);
-        p -> AllocateNestedClasses(num_inner_classes);
-        p -> AllocateNestedInterfaces(num_inner_interfaces);
-        p -> AllocateEmptyDeclarations(num_empty_declarations);
-
-        root = tail;
-        do
-        {
-            root = root -> next;
-
-            AstFieldDeclaration *field_declaration;
-            AstMethodDeclaration *method_declaration;
-            AstClassDeclaration *class_declaration;
-            AstInterfaceDeclaration *interface_declaration;
-
-            if ((field_declaration = root -> element -> FieldDeclarationCast()))
-            {
-                p -> AddClassVariable(field_declaration);
-            }
-            else if ((method_declaration = root -> element -> MethodDeclarationCast()))
-            {
-                p -> AddMethod(method_declaration);
-            }
-            else if ((class_declaration = root -> element -> ClassDeclarationCast()))
-            {
-                p -> AddNestedClass(class_declaration);
-            }
-            else if ((interface_declaration = root -> element -> InterfaceDeclarationCast()))
-            {
-                p -> AddNestedInterface(interface_declaration);
-            }
-            else // assert(interface_declaration = root -> element -> EmptyDeclarationCast())
-            {
-                p -> AddEmptyDeclaration((AstEmptyDeclaration *) root -> element);
-            }
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_brace_token = Token(3);
-    p -> pool = body_pool; // from now on, this is the storage pool to use for this type
-    Sym(1) = p;
-}
-./
+\:$MakeClassBody:\
+/.$shared_function
+//
+// void MakeClassBody();
+//./
 
 InterfaceMemberDeclarations ::= InterfaceMemberDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
+\:$StartList:\
+/.$shared_StartList./
 
-    Sym(1) = p;
-}
-./
+InterfaceMemberDeclarations ::= InterfaceMemberDeclarations
+                                InterfaceMemberDeclaration
+\:$AddList2:\
+/.$shared_AddList2./
 
-InterfaceMemberDeclarations ::= InterfaceMemberDeclarations InterfaceMemberDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+InterfaceMemberDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-InterfaceMemberDeclaration -> ConstantDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
-InterfaceMemberDeclaration -> AbstractMethodDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
---1.1 feature
-InterfaceMemberDeclaration -> ClassDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
---1.1 feature
-InterfaceMemberDeclaration -> InterfaceDeclaration
+InterfaceMemberDeclarationsopt ::= InterfaceMemberDeclarations
 \:$NoAction:\
 /.$shared_NoAction./
 
 --
--- Empty declarations are not valid Java InterfaceMemberDeclarations.
--- However, since the current (2/14/97) Java compiler accepts them
--- (in fact, some of the official tests contain this erroneous
--- syntax), we decided to accept them as valid syntax and flag them
--- as a warning during semantic processing.
 --
-InterfaceMemberDeclaration ::= ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewEmptyDeclaration(Token(1));
-}
-./
-
-ConstantDeclaration -> FieldDeclaration
+-- For less code duplication and better semantic messages, we parse
+-- non-abstract method bodies and non-initialized fields now, then do a
+-- semantic check that this was valid.
+--
+InterfaceMemberDeclaration ::= ConstantDeclaration
 \:$NoAction:\
 /.$shared_NoAction./
 
-AbstractMethodDeclaration ::= MethodHeader ';'
+--
+-- Simplify. See below.
+--
+--InterfaceMemberDeclaration ::= AbstractMethodDeclaration
+
+--1.1 feature
+--
+-- Consolidate and simplify.
+--
+--InterfaceMemberDeclaration ::= ClassDeclaration
+--InterfaceMemberDeclaration ::= InterfaceDeclaration
+--InterfaceMemberDeclaration ::= ';'
+InterfaceMemberDeclaration ::= TypeDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConstantDeclaration ::= FieldDeclaration
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    ((AstMethodDeclaration *) Sym(1)) -> method_body = ast_pool -> NewEmptyStatement(Token(2));
+    DYNAMIC_CAST<AstFieldDeclaration*> (Sym(1)) -> MarkStatic();
 }
 ./
+
+--
+-- Simplify.
+--
+--AbstractMethodDeclaration ::= MethodHeader ';'
+InterfaceMemberDeclaration ::= MethodDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175. We must inline expand Modifiersopt to
+-- avoid ambiguity: does 'public @' start 'public @A class B{}' or
+-- 'public @interface A{}'. The use of Marker allows us to share code.
+--
+--AnnotationTypeDeclaration ::= InterfaceModifiersopt '@' 'interface'
+--                              'Identifier' AnnotationTypeBody
+AnnotationTypeDeclaration ::= '@' Marker 'interface' 'Identifier'
+                              AnnotationTypeBody
+\:$MakeAnnotationTypeDeclaration:\
+/.$location
+void Parser::MakeAnnotationTypeDeclaration()
+{
+    AstAnnotationDeclaration* p =
+        ast_pool -> NewAnnotationDeclaration(Token(3));
+    if (Token(3) > Token(2))
+        p -> modifiers_opt = MakeModifiers();
+    p -> class_body = DYNAMIC_CAST<AstClassBody*> (Sym(5));
+    p -> class_body -> identifier_token = Token(4);
+    p -> class_body -> owner = p;
+    Sym(1) = p;
+}
+./
+
+-- Annotations were added in JSR 175. We must inline expand Modifiersopt to
+-- avoid ambiguity: does 'public @' start 'public @A class B{}' or
+-- 'public @interface A{}'.
+--
+AnnotationTypeDeclaration ::= Modifiers '@' 'interface' 'Identifier'
+                              AnnotationTypeBody
+\:$MakeAnnotationTypeDeclaration:\
+/.$shared_function
+//
+// void MakeAnnotationTypeDeclaration();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeBody ::= '{' AnnotationTypeMemberDeclarationsopt '}'
+\:$MakeClassBody:\
+/.$shared_function
+//
+// void MakeClassBody();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeMemberDeclarations ::= AnnotationTypeMemberDeclaration
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeMemberDeclarations ::= AnnotationTypeMemberDeclarations
+                                     AnnotationTypeMemberDeclaration
+\:$AddList2:\
+/.$shared_AddList2./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeMemberDeclarationsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeMemberDeclarationsopt ::= AnnotationTypeMemberDeclarations
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175. We must inline expand Modifiersopt to
+-- avoid ambiguity. The use of Marker allows us to share code.
+--
+--AnnotationTypeMemberDeclaration ::= AbstractMethodModifiersopt Type
+--                                    'Identifier' '(' ')' DefaultValueopt ';'
+AnnotationTypeMemberDeclaration ::= Marker Marker Type 'Identifier' '(' ')'
+                                    DefaultValueopt ';'
+\:$MakeAnnotationTypeMemberDeclaration:\
+/.$location
+void Parser::MakeAnnotationTypeMemberDeclaration()
+{
+    AstMethodDeclaration* p = ast_pool -> NewMethodDeclaration();
+    p -> modifiers_opt = MakeModifiers();
+    p -> type = DYNAMIC_CAST<AstType*> (Sym(3));
+    AstMethodDeclarator* q = ast_pool -> NewMethodDeclarator();
+    q -> identifier_token = Token(4);
+    q -> left_parenthesis_token = Token(5);
+    q -> right_parenthesis_token = Token(6);
+    p -> method_declarator = q;
+    p -> default_value_opt = DYNAMIC_CAST<AstMemberValue*> (Sym(7));
+    p -> semicolon_token_opt = Token(8);
+    Sym(1) = p;
+}
+./
+
+--
+-- Annotations were added in JSR 175. We must inline expand Modifiersopt to
+-- avoid ambiguity.
+--
+AnnotationTypeMemberDeclaration ::= Modifiers Marker Type 'Identifier' '(' ')'
+                                    DefaultValueopt ';'
+\:$MakeAnnotationTypeMemberDeclaration:\
+/.$shared_function
+//
+// void MakeAnnotationTypeMemberDeclaration();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+AnnotationTypeMemberDeclaration ::= ConstantDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175. Consolidate and simplify.
+--
+--AnnotationTypeMemberDeclaration ::= ClassDeclaration
+--AnnotationTypeMemberDeclaration ::= InterfaceDeclaration
+--AnnotationTypeMemberDeclaration ::= EnumDeclaration
+--AnnotationTypeMemberDeclaration ::= AnnotationTypeDeclaration
+--AnnotationTypeMemberDeclaration ::= ';'
+AnnotationTypeMemberDeclaration ::= TypeDeclaration
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+DefaultValue ::= 'default' MemberValue
+\:$SetSym1ToSym2:\
+/.$shared_function
+//
+// void SetSym1ToSym2();
+//./
+
+--
+-- Annotations were added in JSR 175.
+--
+DefaultValueopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Annotations were added in JSR 175.
+--
+DefaultValueopt ::= DefaultValue
+\:$NoAction:\
+/.$shared_NoAction./
 
 --18.10 Productions from 10: Arrays
-
 --
--- NOTE that the rules VariableInitializersopt and ,opt have been expanded,
--- where appropriate, in the rule below in order to make the grammar lalr(1).
+-- The rule VariableInitializersopt was expanded inline below to make the
+-- grammar LALR(1). The use of Marker allows us to share code.
 --
 -- ArrayInitializer ::= '{' VariableInitializersopt ,opt '}'
---
-ArrayInitializer ::= '{' ,opt '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstArrayInitializer *p = ast_pool -> NewArrayInitializer();
-    p -> left_brace_token      = Token(1);
-    p -> right_brace_token     = Token(3);
-    Sym(1) = p;
-}
-./
+ArrayInitializer ::= '{' Marker ,opt '}'
+\:$MakeArrayInitializer:\
+/.$shared_function
+//
+// void MakeArrayInitializer();
+//./
 
-ArrayInitializer ::= '{' VariableInitializers '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstArrayInitializer *p = ast_pool -> NewArrayInitializer();
-    p -> left_brace_token      = Token(1);
-    if (Sym(2) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateVariableInitializers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableInitializer(root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_brace_token     = Token(3);
-    Sym(1) = p;
-}
-./
-
-ArrayInitializer ::= '{' VariableInitializers , '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstArrayInitializer *p = ast_pool -> NewArrayInitializer();
-    p -> left_brace_token      = Token(1);
-    if (Sym(2) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateVariableInitializers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableInitializer(root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_brace_token     = Token(4);
-    Sym(1) = p;
-}
-./
+ArrayInitializer ::= '{' VariableInitializers ,opt '}'
+\:$MakeArrayInitializer:\
+/.$shared_function
+//
+// void MakeArrayInitializer();
+//./
 
 VariableInitializers ::= VariableInitializer
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 VariableInitializers ::= VariableInitializers ',' VariableInitializer
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+\:$AddList3:\
+/.$shared_AddList3./
 
 --18.11 Productions from 13: Blocks and Statements
 
 Block ::= '{' BlockStatementsopt '}'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstBlock *p = ast_pool -> NewBlock();
-    p -> left_brace_token  = Token(1);
-    if (Sym(2) != NULL)
+    AstBlock* p = ast_pool -> NewBlock();
+    p -> left_brace_token = Token(1);
+    if (Sym(2))
     {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateBlockStatements(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        p -> AllocateStatements(tail -> index + 1);
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddStatement((AstStatement *) root -> element);
-        } while(root != tail);
+            p -> AddStatement(DYNAMIC_CAST<AstStatement*> (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
     p -> right_brace_token = Token(3);
@@ -2479,238 +3419,243 @@ void Parser::Act$rule_number(void)
 ./
 
 BlockStatements ::= BlockStatement
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 BlockStatements ::= BlockStatements BlockStatement
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+\:$AddList2:\
+/.$shared_AddList2./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
+BlockStatementsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-BlockStatement -> LocalVariableDeclarationStatement
+BlockStatementsopt ::= BlockStatements
 \:$NoAction:\
 /.$shared_NoAction./
 
-BlockStatement -> Statement
+BlockStatement ::= LocalVariableDeclarationStatement
+\:$NoAction:\
+/.$shared_NoAction./
+
+BlockStatement ::= Statement
 \:$NoAction:\
 /.$shared_NoAction./
 
 --1.1 feature
-BlockStatement -> ClassDeclaration
+BlockStatement ::= ClassDeclaration
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    Sym(1) = ast_pool ->
+        NewLocalClassStatement(DYNAMIC_CAST<AstClassDeclaration*> (Sym(1)));
+}
+./
+
+--
+-- Enums were added in JSR 201.
+--
+BlockStatement ::= EnumDeclaration
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    Sym(1) = ast_pool ->
+        NewLocalClassStatement(DYNAMIC_CAST<AstEnumDeclaration*> (Sym(1)));
+}
+./
+
+--
+-- NOTE: This rule is not in the original grammar. We added it, and changed
+-- the rule for ConstructorBody, in order to issue a nicer error message
+-- when this() or super() is encountered out of context.
+--
+BlockStatement ::= ExplicitConstructorInvocation
 \:$NoAction:\
 /.$shared_NoAction./
 
 LocalVariableDeclarationStatement ::= LocalVariableDeclaration ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    ((AstLocalVariableDeclarationStatement *) Sym(1)) -> semicolon_token_opt = Token(2);
+    DYNAMIC_CAST<AstLocalVariableStatement*> (Sym(1)) -> semicolon_token_opt =
+        Token(2);
 }
 ./
 
-LocalVariableDeclaration ::= Type VariableDeclarators
-\:$action:\
+--
+-- For nicer error messages, we accept all modifiers, even though only
+-- 'final' and annotations are valid. Also, we must inline expand finalopt
+-- to avoid ambiguity. The use of Marker allows us to share code.
+--
+--LocalVariableDeclaration ::= finalopt Type VariableDeclarators
+LocalVariableDeclaration ::= Type Marker Marker VariableDeclarators
+\:$MakeLocalVariable:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeLocalVariable()
 {
-    AstLocalVariableDeclarationStatement *p = ast_pool -> NewLocalVariableDeclarationStatement();
-    p -> type                 = Sym(1);
-    //
-    // The list of declarators is guaranteed not empty
-    //
+    AstLocalVariableStatement* p = ast_pool -> NewLocalVariableStatement();
+    if (Sym(2))
     {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateVariableDeclarators(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableDeclarator((AstVariableDeclarator *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
+        p -> modifiers_opt = MakeModifiers();
+        p -> type = DYNAMIC_CAST<AstType*> (Sym(2));
     }
-    p -> semicolon_token_opt  = 0;
+    else p -> type = DYNAMIC_CAST<AstType*> (Sym(1));
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(4));
+    p -> AllocateVariableDeclarators(tail -> index + 1);
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        p -> AddVariableDeclarator(DYNAMIC_CAST<AstVariableDeclarator*>
+                                   (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
     Sym(1) = p;
 }
 ./
 
 --1.1 feature
-LocalVariableDeclaration ::= Modifiers Type VariableDeclarators
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstLocalVariableDeclarationStatement *p = ast_pool -> NewLocalVariableDeclarationStatement();
-    //
-    // The list of modifiers is guaranteed not empty
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateLocalModifiers(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddLocalModifier((AstModifier *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> type = Sym(2);
-    //
-    // The list of declarators is guaranteed not empty
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateVariableDeclarators(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddVariableDeclarator((AstVariableDeclarator *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> semicolon_token_opt  = 0;
-    Sym(1) = p;
-}
-./
+--
+-- For nicer error messages, we accept all modifiers, even though only
+-- 'final' and annotations are valid. Also, we must inline expand finalopt
+-- to avoid ambiguity. The use of Marker allows us to share code.
+--
+--LocalVariableDeclaration ::= final Type VariableDeclarators
+LocalVariableDeclaration ::= Modifiers Type Marker VariableDeclarators
+\:$MakeLocalVariable:\
+/.$shared_function
+//
+// void MakeLocalVariable();
+//./
 
-Statement -> StatementWithoutTrailingSubstatement
+Statement ::= StatementWithoutTrailingSubstatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-Statement -> LabeledStatement
+Statement ::= LabeledStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-Statement -> IfThenStatement
+Statement ::= IfThenStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-Statement -> IfThenElseStatement
+Statement ::= IfThenElseStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-Statement -> WhileStatement
+Statement ::= WhileStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-Statement -> ForStatement
+Statement ::= ForStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementNoShortIf -> StatementWithoutTrailingSubstatement
+--
+-- Enhanced for statements (also known as foreach, but without a new keyword),
+-- were added in JDK 1.5, as part of JSR 201.
+--
+Statement ::= ForeachStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementNoShortIf -> LabeledStatementNoShortIf
+StatementNoShortIf ::= StatementWithoutTrailingSubstatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementNoShortIf -> IfThenElseStatementNoShortIf
+StatementNoShortIf ::= LabeledStatementNoShortIf
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementNoShortIf -> WhileStatementNoShortIf
+StatementNoShortIf ::= IfThenElseStatementNoShortIf
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementNoShortIf -> ForStatementNoShortIf
+StatementNoShortIf ::= WhileStatementNoShortIf
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> Block
+StatementNoShortIf ::= ForStatementNoShortIf
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> EmptyStatement
+--
+-- Enhanced for statements (also known as foreach, but without a new keyword),
+-- were added in JDK 1.5, as part of JSR 201.
+--
+StatementNoShortIf ::= ForeachStatementNoShortIf
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> ExpressionStatement
+StatementWithoutTrailingSubstatement ::= Block
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> SwitchStatement
+StatementWithoutTrailingSubstatement ::= EmptyStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> DoStatement
+StatementWithoutTrailingSubstatement ::= ExpressionStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> BreakStatement
+StatementWithoutTrailingSubstatement ::= SwitchStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> ContinueStatement
+StatementWithoutTrailingSubstatement ::= DoStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> ReturnStatement
+StatementWithoutTrailingSubstatement ::= BreakStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> SynchronizedStatement
+StatementWithoutTrailingSubstatement ::= ContinueStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> ThrowStatement
+StatementWithoutTrailingSubstatement ::= ReturnStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
-StatementWithoutTrailingSubstatement -> TryStatement
+StatementWithoutTrailingSubstatement ::= SynchronizedStatement
+\:$NoAction:\
+/.$shared_NoAction./
+
+StatementWithoutTrailingSubstatement ::= ThrowStatement
+\:$NoAction:\
+/.$shared_NoAction./
+
+StatementWithoutTrailingSubstatement ::= TryStatement
+\:$NoAction:\
+/.$shared_NoAction./
+
+StatementWithoutTrailingSubstatement ::= AssertStatement
 \:$NoAction:\
 /.$shared_NoAction./
 
 EmptyStatement ::= ';'
-\:$MakeEmptyStatement:\
-/.$shared_function
-//
-// void MakeEmptyStatement(void);
-//./
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    Sym(1) = ast_pool -> NewEmptyStatement(Token(1));
+}
+./
 
 LabeledStatement ::= 'Identifier' ':' Statement
 \:$MakeLabeledStatement:\
 /.$location
-void Parser::MakeLabeledStatement(void)
+void Parser::MakeLabeledStatement()
 {
-    AstBlock *p = Sym(3) -> BlockCast();
+    AstBlock* p = Sym(3) -> BlockCast();
 
-    if (! (p && p -> NumStatements() == 1 &&
-           (p -> Statement(0) -> kind == Ast::FOR   ||
-            p -> Statement(0) -> kind == Ast::WHILE ||
-            p -> Statement(0) -> kind == Ast::DO)))
+    if (! p || p -> label_opt)
     {
         //
         // When a statement is labeled, it is enclosed in a block.
@@ -2718,14 +3663,14 @@ void Parser::MakeLabeledStatement(void)
         // reused to label a subsequent statement at the same nesting
         // level... See ProcessBlock, ProcessStatement,...
         //
-        p = ast_pool -> NewBlock();
-        p -> AllocateBlockStatements(1); // allocate 1 element
-        p -> left_brace_token  = Token(1);
-        p -> AddStatement((AstStatement *) Sym(3));
+        p = ast_pool -> GenBlock();
+        p -> AllocateStatements(1); // allocate 1 element
+        p -> left_brace_token = Token(1);
+        p -> AddStatement(DYNAMIC_CAST<AstStatement*> (Sym(3)));
         p -> right_brace_token = Sym(3) -> RightToken();
     }
 
-    p -> AddLabel(Token(1)); // add label to statement
+    p -> label_opt = Token(1); // add label to statement
     Sym(1) = p; // The final result is a block containing the labeled-statement
 }
 ./
@@ -2734,26 +3679,26 @@ LabeledStatementNoShortIf ::= 'Identifier' ':' StatementNoShortIf
 \:$MakeLabeledStatement:\
 /.$shared_function
 //
-// void MakeLabeledStatement(void);
+// void MakeLabeledStatement();
 //./
 
 ExpressionStatement ::= StatementExpression ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    ((AstExpressionStatement *) Sym(1)) -> semicolon_token_opt = Token(2);
+    DYNAMIC_CAST<AstExpressionStatement*> (Sym(1)) -> semicolon_token_opt =
+        Token(2);
 }
 ./
 
 StatementExpression ::= Assignment
 \:$MakeExpressionStatement:\
 /.$location
-void Parser::MakeExpressionStatement(void)
+void Parser::MakeExpressionStatement()
 {
-    AstExpressionStatement *p = ast_pool -> NewExpressionStatement();
-    p -> expression          = (AstExpression *) Sym(1);
-    p -> semicolon_token_opt = 0;
+    AstExpressionStatement* p = ast_pool -> NewExpressionStatement();
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
     Sym(1) = p;
 }
 ./
@@ -2762,131 +3707,200 @@ StatementExpression ::= PreIncrementExpression
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
 StatementExpression ::= PreDecrementExpression
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
 StatementExpression ::= PostIncrementExpression
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
 StatementExpression ::= PostDecrementExpression
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
 StatementExpression ::= MethodInvocation
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
 StatementExpression ::= ClassInstanceCreationExpression
 \:$MakeExpressionStatement:\
 /.$shared_function
 //
-// void MakeExpressionStatement(void);
+// void MakeExpressionStatement();
 //./
 
-IfThenStatement ::=  'if' '(' Expression ')' Statement
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBlock *block = Sym(5) -> BlockCast();
-    if (! block)
-    {
-        block = ast_pool -> NewBlock();
-        block -> AllocateBlockStatements(1); // allocate 1 element
-        block -> left_brace_token  = Token(5);
-        block -> AddStatement((AstStatement *) Sym(5));
-        block -> right_brace_token = Sym(5) -> RightToken();
-    }
-
-    AstIfStatement *p = ast_pool -> NewIfStatement();
-    p -> if_token            = Token(1);
-    p -> expression          = (AstExpression *) Sym(3);
-    p -> true_statement      = block;
-    p -> false_statement_opt = NULL;
-    Sym(1) = p;
-}
-./
-
-IfThenElseStatement ::=  'if' '(' Expression ')' StatementNoShortIf 'else' Statement
+--
+-- The use of Marker allows us to share code.
+--
+--IfThenStatement ::= 'if' '(' Expression ')' Statement
+IfThenStatement ::= 'if' '(' Expression ')' Statement Marker Marker
 \:$MakeIfThenElseStatement:\
 /.$location
-void Parser::MakeIfThenElseStatement(void)
+void Parser::MakeIfThenElseStatement()
 {
-    AstBlock *true_block = Sym(5) -> BlockCast();
-    if (! true_block)
-    {
-        true_block = ast_pool -> NewBlock();
-        true_block -> AllocateBlockStatements(1); // allocate 1 element
-        true_block -> left_brace_token  = Token(5);
-        true_block -> AddStatement((AstStatement *) Sym(5));
-        true_block -> right_brace_token = Sym(5) -> RightToken();
-    }
-
-    AstBlock *false_block = Sym(7) -> BlockCast();
-    if (! false_block)
-    {
-        false_block = ast_pool -> NewBlock();
-        false_block -> AllocateBlockStatements(1); // allocate 1 element
-        false_block -> left_brace_token  = Token(7);
-        false_block -> AddStatement((AstStatement *) Sym(7));
-        false_block -> right_brace_token = Sym(7) -> RightToken();
-    }
-
-    AstIfStatement *p = ast_pool -> NewIfStatement();
-    p -> if_token            = Token(1);
-    p -> expression          = (AstExpression *) Sym(3);
-    p -> true_statement      = true_block;
-    p -> false_statement_opt = false_block;
+    //
+    // We wrap the true and false statements in a block, to make the semantic
+    // pass easier.
+    //
+    AstIfStatement* p = ast_pool -> NewIfStatement();
+    p -> if_token = Token(1);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
+    p -> true_statement = MakeBlock(5);
+    p -> false_statement_opt = Sym(7) ? MakeBlock(7) : NULL;
     Sym(1) = p;
+}
+
+//
+// Ensures the symbol at tokennum is an AstBlock (wrapping it in a generated
+// block if necessary).
+//
+AstBlock* Parser::MakeBlock(int tokennum)
+{
+    AstBlock* block = Sym(tokennum) -> BlockCast();
+    if (! block)
+    {
+        block = ast_pool -> GenBlock();
+        block -> AllocateStatements(1); // allocate 1 element
+        block -> left_brace_token = Token(tokennum);
+        block -> AddStatement(DYNAMIC_CAST<AstStatement*> (Sym(tokennum)));
+        block -> right_brace_token = Sym(tokennum) -> RightToken();
+    }
+    return block;
 }
 ./
 
-IfThenElseStatementNoShortIf ::=  'if' '(' Expression ')' StatementNoShortIf 'else' StatementNoShortIf
+IfThenElseStatement ::= 'if' '(' Expression ')' StatementNoShortIf
+                        'else' Statement
 \:$MakeIfThenElseStatement:\
 /.$shared_function
 //
-// void MakeIfThenElseStatement(void);
+// void MakeIfThenElseStatement();
+//./
+
+IfThenElseStatementNoShortIf ::= 'if' '(' Expression ')' StatementNoShortIf
+                                 'else' StatementNoShortIf
+\:$MakeIfThenElseStatement:\
+/.$shared_function
+//
+// void MakeIfThenElseStatement();
 //./
 
 SwitchStatement ::= 'switch' '(' Expression ')' SwitchBlock
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstSwitchStatement *p = (AstSwitchStatement *) Sym(5);
+    AstSwitchStatement* p = DYNAMIC_CAST<AstSwitchStatement*> (Sym(5));
     p -> switch_token = Token(1);
-    p -> expression   = (AstExpression *) Sym(3);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
     Sym(1) = p;
 }
 ./
 
-SwitchBlock ::= '{' '}'
+--
+-- To avoid ambiguity with consecutive optional items, and to special
+-- case trailing labels, we expand this inline.
+--
+--SwitchBlock ::= '{' SwitchBlockStatementsopt SwitchLabelsopt '}'
+--
+SwitchBlock ::= '{' SwitchBlockStatements SwitchLabelsopt '}'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstSwitchStatement *p = ast_pool -> NewSwitchStatement();
+    AstSwitchStatement* p = ast_pool -> NewSwitchStatement();
+    AstBlock* block = ast_pool -> NewBlock();
+    block -> left_brace_token = Token(1);
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+    block -> AllocateStatements(tail -> index + (Sym(3) ? 2 : 1));
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        block -> AddStatement(DYNAMIC_CAST<AstStatement*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    if (Sym(3))
+        block -> AddStatement
+            (MakeSwitchBlockStatement(DYNAMIC_CAST<AstListNode*> (Sym(3))));
+    block -> right_brace_token = Token(4);
+    block -> SetTag(AstBlock::SWITCH);
+    p -> switch_block = block;
+    Sym(1) = p;
+}
 
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> left_brace_token  = Token(1);
-    block -> right_brace_token = Token(2);
+//
+// Creates an AstSwitchBlockStatement from the given non-null labels, and
+// possibly null list of statements.
+//
+AstStatement* Parser::MakeSwitchBlockStatement(AstListNode* labels,
+                                               AstListNode* statements)
+{
+    AstSwitchBlockStatement* p = ast_pool -> NewSwitchBlockStatement();
+    assert(labels);
+    AstListNode* tail = labels;
+    p -> AllocateSwitchLabels(tail -> index + 1);
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        p -> AddSwitchLabel(DYNAMIC_CAST<AstSwitchLabel*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    if (statements)
+    {
+        tail = statements;
+        p -> AllocateStatements(tail -> index + 1);
+        root = tail;
+        do
+        {
+            root = root -> next;
+            p -> AddStatement(DYNAMIC_CAST<AstStatement*> (root -> element));
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    else
+    {
+        p -> AllocateStatements(1);
+        p -> AddStatement(ast_pool -> GenEmptyStatement(labels ->
+                                                        RightToken()));
+    }
+    p -> right_brace_token =
+        p -> Statement(p -> NumStatements() - 1) -> RightToken();
+    return p;
+}
+./
+
+SwitchBlock ::= '{' SwitchLabelsopt '}'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstSwitchStatement* p = ast_pool -> NewSwitchStatement();
+    AstBlock* block = ast_pool -> NewBlock();
+    block -> AllocateStatements(1); // allocate 1 element
+    block -> left_brace_token = Token(1);
+    if (Sym(2))
+        block -> AddStatement
+            (MakeSwitchBlockStatement(DYNAMIC_CAST<AstListNode*> (Sym(2))));
+    block -> right_brace_token = Token(3);
+    block -> SetTag(AstBlock::SWITCH);
 
     p -> switch_block = block;
 
@@ -2894,279 +3908,89 @@ void Parser::Act$rule_number(void)
 }
 ./
 
-SwitchBlock ::= '{' SwitchBlockStatements '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstSwitchStatement *p = ast_pool -> NewSwitchStatement();
-
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> left_brace_token  = Token(1);
-    if (Sym(2) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        block -> AllocateBlockStatements(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            block -> AddStatement((AstStatement *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    block -> right_brace_token = Token(3);
-
-    p -> switch_block  = block;
-
-    Sym(1) = p;
-}
-./
-
-SwitchBlock ::= '{' SwitchLabels '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstSwitchStatement *p = ast_pool -> NewSwitchStatement();
-
-    AstSwitchBlockStatement *q = ast_pool -> NewSwitchBlockStatement();
-    q -> AddStatement(ast_pool -> NewEmptyStatement(Sym(2) -> RightToken()));
-
-    //
-    // The list of SwitchBlockStatements is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        q -> AllocateSwitchLabels(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            q -> AddSwitchLabel((AstStatement *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> AllocateBlockStatements(1); // allocate 1 element
-    block -> left_brace_token  = Token(1);
-    block -> AddStatement(q);
-    block -> right_brace_token = Token(3);
-
-    p -> switch_block  = block;
-
-    Sym(1) = p;
-}
-./
-
-SwitchBlock ::= '{' SwitchBlockStatements SwitchLabels '}'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstSwitchStatement *p = ast_pool -> NewSwitchStatement();
-
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> left_brace_token  = Token(1);
-    //
-    // The list of SwitchBlockStatements is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        block -> AllocateBlockStatements(tail -> index + 2); // +1 because of extra statement for additional SwithLabels
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            block -> AddStatement((AstStatement *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    AstSwitchBlockStatement *q = ast_pool -> NewSwitchBlockStatement();
-    q -> AddStatement(ast_pool -> NewEmptyStatement(Sym(3) -> RightToken()));
-
-    //
-    // The list of SwitchLabels is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        q -> AllocateSwitchLabels(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            q -> AddSwitchLabel(root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    block -> AddStatement(q);
-    block -> right_brace_token = Token(4);
-
-    p -> switch_block  = block;
-
-    Sym(1) = p;
-}
-./
-
 SwitchBlockStatements ::= SwitchBlockStatement
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 SwitchBlockStatements ::= SwitchBlockStatements SwitchBlockStatement
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+\:$AddList2:\
+/.$shared_AddList2./
 
 SwitchBlockStatement ::= SwitchLabels BlockStatements
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstSwitchBlockStatement *p = ast_pool -> NewSwitchBlockStatement();
-    //
-    // The list of SwitchLabels is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(1);
-        p -> AllocateSwitchLabels(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddSwitchLabel(root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    //
-    // The list of SwitchBlockStatements is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(2);
-        p -> AllocateBlockStatements(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddStatement((AstStatement *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    Sym(1) = p;
+    Sym(1) = MakeSwitchBlockStatement(DYNAMIC_CAST<AstListNode*> (Sym(1)),
+                                      DYNAMIC_CAST<AstListNode*> (Sym(2)));
 }
 ./
 
 SwitchLabels ::= SwitchLabel
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 SwitchLabels ::= SwitchLabels SwitchLabel
-\:$action:\
+\:$AddList2:\
+/.$shared_AddList2./
+
+SwitchLabelsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+SwitchLabelsopt ::= SwitchLabels
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify.
+--
+--SwitchLabel ::= 'case' ConstantExpression ':'
+SwitchLabel ::= 'case' Expression ':'
+\:$MakeSwitchLabel:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::MakeSwitchLabel()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
-
-SwitchLabel ::= 'case' ConstantExpression ':'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstCaseLabel *p = ast_pool -> NewCaseLabel();
-    p -> case_token  = Token(1);
-    p -> expression  = (AstExpression *) Sym(2);
+    AstSwitchLabel* p = ast_pool -> NewSwitchLabel();
+    p -> case_token = Token(1);
+    p -> expression_opt = DYNAMIC_CAST<AstExpression*> (Sym(2));
     p -> colon_token = Token(3);
     Sym(1) = p;
 }
 ./
 
-SwitchLabel ::= 'default' ':'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstDefaultLabel *p = ast_pool -> NewDefaultLabel();
-    p -> default_token = Token(1);
-    p -> colon_token   = Token(2);
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.
+--
+--SwitchLabel ::= 'default' ':'
+SwitchLabel ::= 'default' Marker ':'
+\:$MakeSwitchLabel:\
+/.$shared_function
+//
+// void MakeSwitchLabel();
+//./
 
 WhileStatement ::= 'while' '(' Expression ')' Statement
 \:$MakeWhileStatement:\
 /.$location
-void Parser::MakeWhileStatement(void)
+void Parser::MakeWhileStatement()
 {
-    AstWhileStatement *p = ast_pool -> NewWhileStatement();
+    //
+    // We wrap the loop statement in a block, to make the semantic pass easier.
+    //
+    AstWhileStatement* p = ast_pool -> NewWhileStatement();
     p -> while_token = Token(1);
-    p -> expression  = (AstExpression *) Sym(3);
-    p -> statement   = (AstStatement *) Sym(5);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
+    p -> statement = MakeBlock(5);
 
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> AllocateBlockStatements(1); // allocate 1 element
-    block -> left_brace_token  = Token(1); // point to 'FOR' keyword
+    //
+    // We also wrap the loop in a block, to make the semantic pass easier.
+    //
+    AstBlock* block = ast_pool -> GenBlock();
+    block -> AllocateStatements(1); // allocate 1 element
+    block -> left_brace_token = Token(1);
     block -> AddStatement(p);
-    block -> right_brace_token = Sym(5) -> RightToken(); // point to last token in statement
-
+    block -> right_brace_token = Sym(5) -> RightToken();
     Sym(1) = block;
 }
 ./
@@ -3175,199 +3999,221 @@ WhileStatementNoShortIf ::= 'while' '(' Expression ')' StatementNoShortIf
 \:$MakeWhileStatement:\
 /.$shared_function
 //
-// void MakeWhileStatement(void);
+// void MakeWhileStatement();
 //./
 
 DoStatement ::= 'do' Statement 'while' '(' Expression ')' ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstDoStatement *p = ast_pool -> NewDoStatement();
-    p -> do_token        = Token(1);
-    p -> statement       = (AstStatement *) Sym(2);
-    p -> while_token     = Token(3);
-    p -> expression      = (AstExpression *) Sym(5);
+    //
+    // We wrap the loop statement in a block, to make the semantic pass easier.
+    //
+    AstDoStatement* p = ast_pool -> NewDoStatement();
+    p -> do_token = Token(1);
+    p -> statement = MakeBlock(2);
+    p -> while_token = Token(3);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(5));
     p -> semicolon_token = Token(7);
 
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> AllocateBlockStatements(1); // allocate 1 element
-    block -> left_brace_token  = Token(1);
+    //
+    // We also wrap the loop in a block, to make the semantic pass easier.
+    //
+    AstBlock* block = ast_pool -> GenBlock();
+    block -> AllocateStatements(1); // allocate 1 element
+    block -> left_brace_token = Token(1);
     block -> AddStatement(p);
     block -> right_brace_token = Token(7);
-
     Sym(1) = block;
 }
 ./
 
-ForStatement ::= 'for' '(' ForInitopt ';' Expressionopt ';' ForUpdateopt ')' Statement
+ForStatement ::= 'for' '(' ForInitopt ';' Expressionopt ';' ForUpdateopt ')'
+                 Statement
 \:$MakeForStatement:\
 /.$location
-void Parser::MakeForStatement(void)
+void Parser::MakeForStatement()
 {
-    AstForStatement *p = ast_pool -> NewForStatement();
+    //
+    // We wrap the loop statement in a block, to make the semantic pass easier.
+    //
+    AstForStatement* p = ast_pool -> NewForStatement();
     p -> for_token = Token(1);
-    if (Sym(3) != NULL)
+    if (Sym(3))
     {
-        AstListNode *tail = (AstListNode *) Sym(3);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(3));
         p -> AllocateForInitStatements(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddForInitStatement((AstStatement *) root -> element);
-        } while(root != tail);
+            p -> AddForInitStatement(DYNAMIC_CAST<AstStatement*>
+                                     (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    p -> end_expression_opt = (AstExpression *) Sym(5);
-    if (Sym(7) != NULL)
+    p -> end_expression_opt = DYNAMIC_CAST<AstExpression*> (Sym(5));
+    if (Sym(7))
     {
-        AstListNode *tail = (AstListNode *) Sym(7);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(7));
         p -> AllocateForUpdateStatements(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddForUpdateStatement((AstExpressionStatement *) root -> element);
-        } while(root != tail);
+            p -> AddForUpdateStatement(DYNAMIC_CAST<AstExpressionStatement*>
+                                       (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    p -> statement = (AstStatement *) Sym(9);
+    p -> statement = MakeBlock(9);
 
-    AstBlock *block = ast_pool -> NewBlock();
-    block -> AllocateBlockStatements(1); // allocate 1 element
-    block -> left_brace_token  = Token(1);
+    //
+    // We also wrap the loop in a block, to make the semantic pass easier. In
+    // particular, this lets us correctly handle "for(int i;;);for(int i;;);".
+    //
+    AstBlock* block = ast_pool -> NewBlock();
+    block -> AllocateStatements(1); // allocate 1 element
+    block -> left_brace_token = Token(1);
     block -> AddStatement(p);
     block -> right_brace_token = Sym(9) -> RightToken();
-
+    block -> no_braces = true;
     Sym(1) = block;
 }
 ./
 
-ForStatementNoShortIf ::= 'for' '(' ForInitopt ';' Expressionopt ';' ForUpdateopt ')' StatementNoShortIf
+ForStatementNoShortIf ::= 'for' '(' ForInitopt ';' Expressionopt ';'
+                          ForUpdateopt ')' StatementNoShortIf
 \:$MakeForStatement:\
 /.$shared_function
 //
-// void MakeForStatement(void);
+// void MakeForStatement();
 //./
 
-ForInit -> StatementExpressionList
+ForInit ::= StatementExpressionList
 \:$NoAction:\
 /.$shared_NoAction./
 
 ForInit ::= LocalVariableDeclaration
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
+\:$StartList:\
+/.$shared_StartList./
 
-    Sym(1) = p;
-}
-./
+ForInitopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-ForUpdate -> StatementExpressionList
+ForInitopt ::= ForInit
+\:$NoAction:\
+/.$shared_NoAction./
+
+ForUpdate ::= StatementExpressionList
+\:$NoAction:\
+/.$shared_NoAction./
+
+ForUpdateopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+ForUpdateopt ::= ForUpdate
 \:$NoAction:\
 /.$shared_NoAction./
 
 StatementExpressionList ::= StatementExpression
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 StatementExpressionList ::= StatementExpressionList ',' StatementExpression
-\:$action:\
+\:$AddList3:\
+/.$shared_AddList3./
+
+ForeachStatement ::= 'for' '(' FormalParameter ':' Expression ')' Statement
+\:$MakeForeachStatement:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::MakeForeachStatement()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
+    //
+    // We wrap the loop statement in a block, to make the semantic pass easier.
+    //
+    AstForeachStatement* p = ast_pool -> NewForeachStatement();
+    p -> for_token = Token(1);
+    p -> formal_parameter = DYNAMIC_CAST<AstFormalParameter*> (Sym(3));
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(5));
+    p -> statement = MakeBlock(7);
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
+    //
+    // We also wrap the loop in a block, to make the semantic pass easier. In
+    // particular, this lets us correctly handle
+    // "for(int i:new int[0]);for(int i::new int[0]);".
+    //
+    AstBlock* block = ast_pool -> NewBlock();
+    block -> AllocateStatements(1); // allocate 1 element
+    block -> left_brace_token = Token(1);
+    block -> AddStatement(p);
+    block -> right_brace_token = Sym(7) -> RightToken();
+    block -> no_braces = true;
+    Sym(1) = block;
 }
 ./
+
+ForeachStatementNoShortIf ::= 'for' '(' FormalParameter ':' Expression ')'
+                              StatementNoShortIf
+\:$MakeForeachStatement:\
+/.$shared_function
+//
+// void MakeForeachStatement();
+//./
 
 --
--- NOTE that the rule Identifieropt was expanded in line in the two
--- contexts where it appeared: Break and Continue statements.
--- This was done because there is no straightforward way of passing
--- optional token information in the parse stack.
+-- Assert statements were added in JDK 1.4, as part of JSR 41.
+-- The use of Marker allows us to share code.
 --
-BreakStatement ::= 'break' ';'
-\:$action:\
+--AssertStatement ::= 'assert' Expression ';'
+AssertStatement ::= 'assert' Expression Marker Marker ';'
+\:$MakeAssertStatement:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeAssertStatement()
 {
-    AstBreakStatement *p = ast_pool -> NewBreakStatement();
-    p -> break_token          = Token(1);
-    p -> identifier_token_opt = 0;
-    p -> semicolon_token      = Token(2);
+    AstAssertStatement* p = ast_pool -> NewAssertStatement();
+    p -> assert_token = Token(1);
+    p -> condition = DYNAMIC_CAST<AstExpression*> (Sym(2));
+    p -> message_opt = DYNAMIC_CAST<AstExpression*> (Sym(4));
+    p -> semicolon_token = Token(5);
     Sym(1) = p;
 }
 ./
 
-BreakStatement ::= 'break' 'Identifier' ';'
+AssertStatement ::= 'assert' Expression ':' Expression ';'
+\:$MakeAssertStatement:\
+/.$shared_function
+//
+// void MakeAssertStatement();
+//./
+
+BreakStatement ::= 'break' Identifieropt ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstBreakStatement *p = ast_pool -> NewBreakStatement();
-    p -> break_token          = Token(1);
-    p -> identifier_token_opt = Token(2);
-    p -> semicolon_token      = Token(3);
+    AstBreakStatement* p = ast_pool -> NewBreakStatement();
+    p -> break_token = Token(1);
+    if (Token(3) > Token(2))
+        p -> identifier_token_opt = Token(2);
+    p -> semicolon_token = Token(3);
     Sym(1) = p;
 }
 ./
 
-ContinueStatement ::= 'continue' ';'
+ContinueStatement ::= 'continue' Identifieropt ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstContinueStatement *p = ast_pool -> NewContinueStatement();
-    p -> continue_token       = Token(1);
-    p -> identifier_token_opt = 0;
-    p -> semicolon_token      = Token(2);
-    Sym(1) = p;
-}
-./
-
-ContinueStatement ::= 'continue' 'Identifier' ';'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstContinueStatement *p = ast_pool -> NewContinueStatement();
-    p -> continue_token       = Token(1);
-    p -> identifier_token_opt = Token(2);
-    p -> semicolon_token      = Token(3);
+    AstContinueStatement* p = ast_pool -> NewContinueStatement();
+    p -> continue_token = Token(1);
+    if (Token(3) > Token(2))
+        p -> identifier_token_opt = Token(2);
+    p -> semicolon_token = Token(3);
     Sym(1) = p;
 }
 ./
@@ -3375,11 +4221,11 @@ void Parser::Act$rule_number(void)
 ReturnStatement ::= 'return' Expressionopt ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstReturnStatement *p = ast_pool -> NewReturnStatement();
-    p -> return_token    = Token(1);
-    p -> expression_opt  = (AstExpression *) Sym(2);
+    AstReturnStatement* p = ast_pool -> NewReturnStatement();
+    p -> return_token = Token(1);
+    p -> expression_opt = DYNAMIC_CAST<AstExpression*> (Sym(2));
     p -> semicolon_token = Token(3);
     Sym(1) = p;
 }
@@ -3388,11 +4234,11 @@ void Parser::Act$rule_number(void)
 ThrowStatement ::= 'throw' Expression ';'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstThrowStatement *p = ast_pool -> NewThrowStatement();
-    p -> throw_token     = Token(1);
-    p -> expression      = (AstExpression *) Sym(2);
+    AstThrowStatement* p = ast_pool -> NewThrowStatement();
+    p -> throw_token = Token(1);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(2));
     p -> semicolon_token = Token(3);
     Sym(1) = p;
 }
@@ -3401,125 +4247,87 @@ void Parser::Act$rule_number(void)
 SynchronizedStatement ::= 'synchronized' '(' Expression ')' Block
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstSynchronizedStatement *p = ast_pool -> NewSynchronizedStatement();
+    AstSynchronizedStatement* p = ast_pool -> NewSynchronizedStatement();
     p -> synchronized_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(3);
-    p -> block              = (AstBlock *) Sym(5);
-    p -> block -> block_tag = AstBlock::SYNCHRONIZED;
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
+    p -> block = DYNAMIC_CAST<AstBlock*> (Sym(5));
+    p -> block -> SetTag(AstBlock::SYNCHRONIZED);
 
     Sym(1) = p;
 }
 ./
 
-TryStatement ::= 'try' Block Catches
-\:$action:\
+--
+-- The use of Marker allows us to share code.
+--
+--TryStatement ::= 'try' Block Catches
+TryStatement ::= 'try' Block Catches Marker
+\:$MakeTryStatement:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeTryStatement()
 {
-    AstTryStatement *p = ast_pool -> NewTryStatement();
-    p -> try_token          = Token(1);
-    p -> block              = (AstBlock *) Sym(2);
-
-    //
-    // The list of modifiers is guaranteed not empty
-    //
+    AstTryStatement* p = ast_pool -> NewTryStatement();
+    p -> try_token = Token(1);
+    p -> block = DYNAMIC_CAST<AstBlock*> (Sym(2));
+    if (Sym(3))
     {
-        AstListNode *tail = (AstListNode *) Sym(3);
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(3));
         p -> AllocateCatchClauses(tail -> index + 1);
-        AstListNode *root = tail;
+        AstListNode* root = tail;
         do
         {
             root = root -> next;
-            p -> AddCatchClause((AstCatchClause *) root -> element);
-        } while(root != tail);
+            p -> AddCatchClause(DYNAMIC_CAST<AstCatchClause*>
+                                (root -> element));
+        } while (root != tail);
         FreeCircularList(tail);
     }
-    p -> finally_clause_opt = NULL;
+    if (Sym(4))
+    {
+        p -> block -> SetTag(AstBlock::TRY_CLAUSE_WITH_FINALLY);
+        for (unsigned i = 0; i < p -> NumCatchClauses(); i++)
+            p -> CatchClause(i) -> block ->
+                SetTag(AstBlock::TRY_CLAUSE_WITH_FINALLY);
+        p -> finally_clause_opt = DYNAMIC_CAST<AstFinallyClause*> (Sym(4));
+    }
     Sym(1) = p;
 }
 ./
 
 TryStatement ::= 'try' Block Catchesopt Finally
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstTryStatement *p = ast_pool -> NewTryStatement();
-    p -> try_token      = Token(1);
-    p -> block          = (AstBlock *) Sym(2);
-    p -> block -> block_tag = AstBlock::TRY_CLAUSE_WITH_FINALLY;
-
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateCatchClauses(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddCatchClause((AstCatchClause *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    for (int i = 0; i < p -> NumCatchClauses(); i++)
-        p -> CatchClause(i) -> block -> block_tag = AstBlock::TRY_CLAUSE_WITH_FINALLY;
-
-    p -> finally_clause_opt = (AstFinallyClause *) Sym(4);
-
-    Sym(1) = p;
-}
-./
+\:$MakeTryStatement:\
+/.$shared_function
+//
+// void MakeTryStatement();
+//./
 
 Catches ::= CatchClause
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 Catches ::= Catches CatchClause
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
+\:$AddList2:\
+/.$shared_AddList2./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
+Catchesopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+Catchesopt ::= Catches
+\:$NoAction:\
+/.$shared_NoAction./
 
 CatchClause ::= 'catch' '(' FormalParameter ')' Block
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstCatchClause *p = ast_pool -> NewCatchClause();
-    p -> catch_token      = Token(1);
-    p -> formal_parameter = (AstFormalParameter *) Sym(3);
-    p -> block            = (AstBlock *) Sym(5);
+    AstCatchClause* p = ast_pool -> NewCatchClause();
+    p -> catch_token = Token(1);
+    p -> formal_parameter = DYNAMIC_CAST<AstFormalParameter*> (Sym(3));
+    p -> block = DYNAMIC_CAST<AstBlock*> (Sym(5));
 
     Sym(1) = p;
 }
@@ -3528,12 +4336,12 @@ void Parser::Act$rule_number(void)
 Finally ::= 'finally' Block
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstFinallyClause *p     = ast_pool -> NewFinallyClause();
-    p -> finally_token      = Token(1);
-    p -> block              = (AstBlock *) Sym(2);
-    p -> block -> block_tag = AstBlock::FINALLY;
+    AstFinallyClause* p = ast_pool -> NewFinallyClause();
+    p -> finally_token = Token(1);
+    p -> block = DYNAMIC_CAST<AstBlock*> (Sym(2));
+    p -> block -> SetTag(AstBlock::FINALLY);
 
     Sym(1) = p;
 }
@@ -3541,315 +4349,330 @@ void Parser::Act$rule_number(void)
 
 --18.12 Productions from 14: Expressions
 
-Primary -> PrimaryNoNewArray
+Primary ::= PrimaryNoNewArray
 \:$NoAction:\
 /.$shared_NoAction./
 
-Primary -> ArrayCreationExpression
+--1.2 feature
+--
+-- It is legal to access an element of an initialized array, as in
+-- new int[] {0}[0]; this requires splitting the original rule for
+-- array creation into two.
+--
+--Primary ::= ArrayCreationExpression
+Primary ::= ArrayCreationUninitialized
 \:$NoAction:\
 /.$shared_NoAction./
 
-PrimaryNoNewArray -> Literal
+Primary ::= ArrayCreationInitialized
 \:$NoAction:\
 /.$shared_NoAction./
 
-PrimaryNoNewArray ::= this
+PrimaryNoNewArray ::= Literal
+\:$NoAction:\
+/.$shared_NoAction./
+
+PrimaryNoNewArray ::= 'this'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     Sym(1) = ast_pool -> NewThisExpression(Token(1));
 }
 ./
 
-PrimaryNoNewArray ::= '(' Expression ')'
-\:$action:\
+--
+-- We split this into two rules to allow better parsing of parenthesized
+-- expressions vs. casts.  All expressions have a dual *NotName form, so that
+-- the decision of whether "(name)" starts a cast or is a primary does not
+-- cause parsing ambiguities. The use of Marker allows us to share code.
+-- Also note that splitting this rule aids in parsing generics.
+--
+--PrimaryNoNewArray ::= '(' Expression ')'
+PrimaryNoNewArray ::= '(' Name Marker ')'
+\:$MakeParenthesizedExpression:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeParenthesizedExpression()
 {
-    AstParenthesizedExpression *p = ast_pool -> NewParenthesizedExpression();
+    AstParenthesizedExpression* p = ast_pool -> NewParenthesizedExpression();
     p -> left_parenthesis_token = Token(1);
-    p -> expression = (AstExpression *) Sym(2);
-    p -> right_parenthesis_token = Token(3);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(2));
+    p -> right_parenthesis_token = Token(4);
     Sym(1) = p;
 }
 ./
 
-PrimaryNoNewArray -> ClassInstanceCreationExpression
+--
+-- The use of Marker allows us to share code.
+--
+PrimaryNoNewArray ::= '(' ExpressionNotName Marker ')'
+\:$MakeParenthesizedExpression:\
+/.$shared_function
+//
+// void MakeParenthesizedExpression();
+//./
+
+PrimaryNoNewArray ::= ClassInstanceCreationExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
-PrimaryNoNewArray -> FieldAccess
+PrimaryNoNewArray ::= FieldAccess
 \:$NoAction:\
 /.$shared_NoAction./
 
 --1.1 feature
+--
+-- Note that we had to rework this to avoid ambiguity
+--
+--PrimaryNoNewArray ::= ClassType '.' 'this'
 PrimaryNoNewArray ::= Name '.' 'this'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstFieldAccess *p = ast_pool -> NewFieldAccess(AstFieldAccess::THIS_TAG);
-    p -> base = (AstExpression *) Sym(1);
-    p -> dot_token = Token(2);
-    p -> identifier_token = Token(3);
+    AstThisExpression* p = ast_pool -> NewThisExpression(Token(3));
+    p -> base_opt = ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(1)));
     Sym(1) = p;
 }
 ./
 
 --1.1 feature
-PrimaryNoNewArray ::= Type '.' 'class'
-\:$action:\
+--
+-- Note that we had to rework this to avoid ambiguity.
+--
+--PrimaryNoNewArray ::= Type '.' 'class'
+PrimaryNoNewArray ::= PrimitiveType Dimsopt '.' 'class'
+\:$MakeClassLiteral:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeClassLiteral()
 {
-    AstFieldAccess *p = ast_pool -> NewFieldAccess(AstFieldAccess::CLASS_TAG);
-    p -> base = ast_pool -> NewTypeExpression(Sym(1));
-    p -> dot_token = Token(2);
-    p -> identifier_token = Token(3);
+    AstClassLiteral* p = ast_pool -> NewClassLiteral(Token(4));
+    if (Token(3) == Token(4))
+        Sym(2) = NULL;
+    p -> type = MakeArrayType(1);
     Sym(1) = p;
 }
 ./
 
---1.1 feature
-PrimaryNoNewArray ::= 'void' '.' 'class'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstFieldAccess *p = ast_pool -> NewFieldAccess(AstFieldAccess::CLASS_TAG);
-    p -> base = ast_pool -> NewTypeExpression(ast_pool -> NewPrimitiveType(Ast::VOID_TYPE, Token(1)));
-    p -> dot_token = Token(2);
-    p -> identifier_token = Token(3);
-    Sym(1) = p;
-}
-./
+PrimaryNoNewArray ::= Name Dims '.' 'class'
+\:$MakeClassLiteral:\
+/.$shared_function
+//
+// void MakeClassLiteral();
+//./
 
-PrimaryNoNewArray -> MethodInvocation
+--
+-- The use of Marker allows us to share code.
+--
+--PrimaryNoNewArray ::= Name '.' 'class'
+PrimaryNoNewArray ::= Name '.' Marker 'class'
+\:$MakeClassLiteral:\
+/.$shared_function
+//
+// void MakeClassLiteral();
+//./
+
+--
+-- The use of Marker allows us to share code.
+--
+--PrimaryNoNewArray ::= 'void' '.' 'class'
+PrimaryNoNewArray ::= VoidType '.' Marker 'class'
+\:$MakeClassLiteral:\
+/.$shared_function
+//
+// void MakeClassLiteral();
+//./
+
+PrimaryNoNewArray ::= MethodInvocation
 \:$NoAction:\
 /.$shared_NoAction./
 
-PrimaryNoNewArray -> ArrayAccess
+PrimaryNoNewArray ::= ArrayAccess
 \:$NoAction:\
 /.$shared_NoAction./
 
 --1.1 feature
 --
 -- In Java 1.0 a ClassBody could not appear at all in a
--- ClassInstanceCreationExpression.
+-- ClassInstanceCreationExpression. Simplify.
 --
-ClassInstanceCreationExpression ::= 'new' ClassType '(' ArgumentListopt ')' ClassBodyopt
+--ClassInstanceCreationExpression ::= 'new' ClassOrInterfaceType '('
+--                                    ArgumentListopt ')' ClassBodyopt
+ClassInstanceCreationExpression ::= 'new' ClassOrInterfaceType Arguments
+                                    ClassBodyopt
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstClassInstanceCreationExpression *p = ast_pool -> NewClassInstanceCreationExpression();
-    p -> base_opt                = NULL;
-    p -> dot_token_opt           = 0;
-    p -> new_token               = Token(1);
-    p -> class_type              = ast_pool -> NewTypeExpression(Sym(2));
-    p -> left_parenthesis_token  = Token(3);
-    if (Sym(4) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(4);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(5);
-    p -> class_body_opt          = (AstClassBody *) Sym(6);
+    AstClassCreationExpression* p = ast_pool -> NewClassCreationExpression();
+    p -> new_token = Token(1);
+    p -> class_type = DYNAMIC_CAST<AstTypeName*> (Sym(2));
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(3));
+    p -> class_body_opt = DYNAMIC_CAST<AstClassBody*> (Sym(4));
+    if (p -> class_body_opt)
+        p -> class_body_opt -> identifier_token =
+            p -> class_type -> IdentifierToken();
+    Sym(1) = p;
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+--ClassInstanceCreationExpression ::= 'new' ClassOrInterfaceType '('
+--                                    ArgumentListopt ')' ClassBodyopt
+ClassInstanceCreationExpression ::= 'new' TypeArguments ClassOrInterfaceType
+                                    Arguments ClassBodyopt
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstClassCreationExpression* p = ast_pool -> NewClassCreationExpression();
+    p -> new_token = Token(1);
+    p -> type_arguments_opt = MakeExplicitTypeArguments(2);
+    p -> class_type = DYNAMIC_CAST<AstTypeName*> (Sym(3));
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(4));
+    p -> class_body_opt = DYNAMIC_CAST<AstClassBody*> (Sym(5));
+    if (p -> class_body_opt)
+        p -> class_body_opt -> identifier_token =
+            p -> class_type -> IdentifierToken();
     Sym(1) = p;
 }
 ./
 
 --1.1 feature
-ClassInstanceCreationExpression ::= Primary '.' 'new' SimpleName '(' ArgumentListopt ')' ClassBodyopt
+--
+-- Parameterized types were added in JSR 14.
+--
+--ClassInstanceCreationExpression ::= Primary '.' 'new' 'Identifier' '('
+--                                    ArgumentListopt ')' ClassBodyopt
+ClassInstanceCreationExpression ::= Primary '.' 'new' TypeArgumentsopt
+                                    'Identifier' TypeArgumentsopt Arguments
+                                    ClassBodyopt
 \:$MakeQualifiedNew:\
 /.$location
-void Parser::MakeQualifiedNew(void)
+void Parser::MakeQualifiedNew()
 {
-    AstClassInstanceCreationExpression *p = ast_pool -> NewClassInstanceCreationExpression();
-    p -> base_opt                = (AstExpression *) Sym(1);
-    p -> dot_token_opt           = Token(2);
-    p -> new_token               = Token(3);
-    p -> class_type              = ast_pool -> NewTypeExpression(Sym(4));
-    p -> left_parenthesis_token  = Token(5);
-    if (Sym(6) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(6);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(7);
-    p -> class_body_opt          = (AstClassBody *) Sym(8);
+    AstClassCreationExpression* p = ast_pool -> NewClassCreationExpression();
+    p -> base_opt = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> new_token = Token(3);
+    p -> type_arguments_opt = MakeExplicitTypeArguments(4);
+    p -> class_type = ast_pool -> NewTypeName(MakeSimpleName(5));
+    p -> class_type -> type_arguments_opt = MakeExplicitTypeArguments(6);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(7));
+    p -> class_body_opt = DYNAMIC_CAST<AstClassBody*> (Sym(8));
+    if (p -> class_body_opt)
+        p -> class_body_opt -> identifier_token = Token(5);
     Sym(1) = p;
 }
 ./
 
 --1.1 feature
-ClassInstanceCreationExpression ::= Name '.' 'new' SimpleName '(' ArgumentListopt ')' ClassBodyopt
+--
+-- Parameterized types were added in JSR 14.
+--
+--ClassInstanceCreationExpression ::= Name '.' 'new' 'Identifier' '('
+--                                    ArgumentListopt ')' ClassBodyopt
+ClassInstanceCreationExpression ::= Name '.' 'new' TypeArgumentsopt
+                                    'Identifier' TypeArgumentsopt Arguments
+                                    ClassBodyopt
 \:$MakeQualifiedNew:\
 /.$shared_function
 //
-// void MakeQualifiedNew(void);
+// void MakeQualifiedNew();
 //./
 
 ArgumentList ::= Expression
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 ArgumentList ::= ArgumentList ',' Expression
-\:$action:\
+\:$AddList3:\
+/.$shared_AddList3./
+
+ArgumentListopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+ArgumentListopt ::= ArgumentList
+\:$NoAction:\
+/.$shared_NoAction./
+
+--1.2 feature
+--
+-- ArrayCreationExpression is split into two parsing categories, to
+-- allow array access on an initialized array.  See above.
+--
+--ArrayCreationExpression ::= 'new' PrimitiveType DimExprs Dimsopt
+ArrayCreationUninitialized ::= 'new' PrimitiveType DimExprs Dimsopt
+\:$MakeArrayCreationUninitialized:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::MakeArrayCreationUninitialized()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(3);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
+    AstArrayCreationExpression* p = ast_pool -> NewArrayCreationExpression();
+    p -> new_token = Token(1);
+    p -> array_type = DYNAMIC_CAST<AstType*> (Sym(2));
+    AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(3));
+    p -> AllocateDimExprs(tail -> index + 1);
+    AstListNode* root = tail;
+    do
+    {
+        root = root -> next;
+        p -> AddDimExpr(DYNAMIC_CAST<AstDimExpr*> (root -> element));
+    } while (root != tail);
+    FreeCircularList(tail);
+    p -> brackets_opt = DYNAMIC_CAST<AstBrackets*> (Sym(4));
     Sym(1) = p;
 }
 ./
 
-ArrayCreationExpression ::= 'new' PrimitiveType DimExprs Dimsopt
-\:$MakeArrayCreationExpression:\
-/.$location
-void Parser::MakeArrayCreationExpression(void)
-{
-    AstArrayCreationExpression *p = ast_pool -> NewArrayCreationExpression();
-    p -> new_token             = Token(1);
-    p -> array_type            = Sym(2);
-    //
-    // The list of DimExprs is never null
-    //
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateDimExprs(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddDimExpr((AstDimExpr *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-
-    if (Sym(4) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(4);
-        p -> AllocateBrackets(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddBrackets((AstBrackets *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> array_initializer_opt = NULL;
-    Sym(1) = p;
-}
-./
-
-ArrayCreationExpression ::= 'new' ClassOrInterfaceType DimExprs Dimsopt
-\:$MakeArrayCreationExpression:\
+--ArrayCreationExpression ::= 'new' ClassOrInterfaceType DimExprs Dimsopt
+ArrayCreationUninitialized ::= 'new' ClassOrInterfaceType DimExprs Dimsopt
+\:$MakeArrayCreationUninitialized:\
 /.$shared_function
 //
-// void MakeArrayCreationExpression(void);
+// void MakeArrayCreationUninitialized();
 //./
 
 --1.1 feature
-ArrayCreationExpression ::= 'new' ArrayType ArrayInitializer
-\:$action:\
+--
+--ArrayCreationExpression ::= 'new' ArrayType ArrayInitializer
+ArrayCreationInitialized ::= 'new' PrimitiveType Dims ArrayInitializer
+\:$MakeArrayCreationInitialized:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeArrayCreationInitialized()
 {
-    AstArrayCreationExpression *p = ast_pool -> NewArrayCreationExpression();
-    p -> new_token             = Token(1);
-    p -> array_type            = Sym(2);
-    p -> array_initializer_opt = (AstArrayInitializer *) Sym(3);
+    AstArrayCreationExpression* p = ast_pool -> NewArrayCreationExpression();
+    p -> new_token = Token(1);
+    p -> array_type = MakeArrayType(2);
+    p -> array_initializer_opt = DYNAMIC_CAST<AstArrayInitializer*> (Sym(4));
     Sym(1) = p;
 }
 ./
+
+ArrayCreationInitialized ::= 'new' ClassOrInterfaceType Dims ArrayInitializer
+\:$MakeArrayCreationInitialized:\
+/.$shared_function
+//
+// void MakeArrayCreationInitialized();
+//./
 
 DimExprs ::= DimExpr
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = Sym(1);
-    p -> index = 0;
-
-    Sym(1) = p;
-}
-./
+\:$StartList:\
+/.$shared_StartList./
 
 DimExprs ::= DimExprs DimExpr
-\:$action:\
-/.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
-{
-    AstListNode *tail = (AstListNode *) Sym(1);
-
-    AstListNode *p = AllocateListNode();
-    p -> element = Sym(2);
-    p -> index = tail -> index + 1;
-
-    p -> next = tail -> next;
-    tail -> next = p;
-
-    Sym(1) = p;
-}
-./
+\:$AddList2:\
+/.$shared_AddList2./
 
 DimExpr ::= '[' Expression ']'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstDimExpr *p = ast_pool -> NewDimExpr();
-    p -> left_bracket_token  = Token(1);
-    p -> expression          = (AstExpression *) Sym(2);
+    AstDimExpr* p = ast_pool -> NewDimExpr();
+    p -> left_bracket_token = Token(1);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(2));
     p -> right_bracket_token = Token(3);
     Sym(1) = p;
 }
@@ -3858,196 +4681,192 @@ void Parser::Act$rule_number(void)
 Dims ::= '[' ']'
 \:$action:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstListNode *p = AllocateListNode();
-    p -> next = p;
-    p -> element = ast_pool -> NewBrackets(Token(1), Token(2));
-    p -> index = 0;
-
-    Sym(1) = p;
+    Sym(1) = ast_pool -> NewBrackets(Token(1), Token(2));
 }
 ./
 
 Dims ::= Dims '[' ']'
 \:$action:\
 /.$location
-//
-// Note that the list is circular so as to preserve the order of the elements
-//
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstListNode *tail = (AstListNode *) Sym(1);
+    AstBrackets* p = DYNAMIC_CAST<AstBrackets*> (Sym(1));
+    p -> right_bracket_token = Token(2);
+    p -> dims++;
+}
+./
 
-    AstListNode *p = AllocateListNode();
-    p -> element = ast_pool -> NewBrackets(Token(2), Token(3));
-    p -> index = tail -> index + 1;
+Dimsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
 
-    p -> next = tail -> next;
-    tail -> next = p;
+Dimsopt ::= Dims
+\:$NoAction:\
+/.$shared_NoAction./
 
+--
+-- Added rule to make parsing 'super' '.' easier.
+--
+SuperAccess ::= 'super'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    Sym(1) = ast_pool -> NewSuperExpression(Token(1));
+}
+./
+
+--
+-- Added rule to make parsing 'super' '.' easier. Technically, only ClassType
+-- is allowed instead of Name, but that would be ambiguous with qualified
+-- names. The use of Marker allows us to share code.
+--
+--SuperAccess ::= ClassType '.' 'super'
+SuperAccess ::= Name '.' Marker 'super'
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstSuperExpression* p = ast_pool -> NewSuperExpression(Token(4));
+    p -> base_opt = ast_pool -> NewTypeName(DYNAMIC_CAST<AstName*> (Sym(1)));
     Sym(1) = p;
 }
 ./
 
-FieldAccess ::= Primary '.' 'Identifier'
+--
+-- The use of Marker allows us to share code.
+--
+--FieldAccess ::= Primary '.' 'Identifier'
+FieldAccess ::= Primary '.' Marker 'Identifier'
+\:$MakeFieldAccess:\
+/.$location
+void Parser::MakeFieldAccess()
+{
+    AstFieldAccess* p = ast_pool -> NewFieldAccess();
+    p -> base = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> identifier_token = Token(4);
+    Sym(1) = p;
+}
+./
+
+--
+-- The use of Marker allows us to share code.  Likewise, SuperAccess
+-- simplifies tree creation.
+--
+--FieldAccess ::= 'super' '.' 'Identifier'
+--FieldAccess ::= ClassType '.' 'super' '.' 'Identifier'
+FieldAccess ::= SuperAccess '.' Marker 'Identifier'
 \:$MakeFieldAccess:\
 /.$shared_function
 //
-// void MakeFieldAccess(void);
+// void MakeFieldAccess();
 //./
 
-FieldAccess ::= 'super' '.' 'Identifier'
-\:$MakeSuperFieldAccess:\
-/.$location
-void Parser::MakeSuperFieldAccess(void)
-{
-    Sym(1) = ast_pool -> NewSuperExpression(Token(1));
-
-    MakeFieldAccess();
-}
-./
-
---1.2 feature
-FieldAccess ::= Name '.' 'super' '.' 'Identifier'
-\:$MakeSuperDoubleFieldAccess:\
-/.$location
-void Parser::MakeSuperDoubleFieldAccess(void)
-{
-    AstFieldAccess *p = ast_pool -> NewFieldAccess();
-
-         AstFieldAccess *q = ast_pool -> NewFieldAccess(AstFieldAccess::SUPER_TAG);
-         q -> base = (AstExpression *) Sym(1);
-         q -> dot_token = Token(2);
-         q -> identifier_token = Token(3);
-
-    p -> base = q;
-    p -> dot_token = Token(4);
-    p -> identifier_token = Token(5);
-
-    Sym(1) = p;
-}
-./
-
-MethodInvocation ::= Name '(' ArgumentListopt ')'
+--
+-- Inline expand Name so we can distinguish the optional base from the required
+-- method identifier.
+--
+--MethodInvocation ::= Name '(' ArgumentListopt ')'
+MethodInvocation ::= 'Identifier' Arguments
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstMethodInvocation *p = ast_pool -> NewMethodInvocation();
-    p -> method                  = (AstExpression *) Sym(1);
-    p -> left_parenthesis_token  = Token(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(4);
+    AstMethodInvocation* p = ast_pool -> NewMethodInvocation(Token(1));
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(2));
     Sym(1) = p;
 }
 ./
 
-MethodInvocation ::= Primary '.' 'Identifier' '(' ArgumentListopt ')'
-\:$action:\
+--
+-- Inline expand Name so we can distinguish the optional base from the required
+-- method identifier.  The use of Marker allows us to share code.
+--
+--MethodInvocation ::= Name '(' ArgumentListopt ')'
+MethodInvocation ::= Name '.' Marker 'Identifier' Arguments
+\:$MakeMethodInvocation:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeMethodInvocation()
 {
-    MakeFieldAccess();
-
-    AstMethodInvocation *p = ast_pool -> NewMethodInvocation();
-    p -> method                  = (AstExpression *) Sym(1);
-    p -> left_parenthesis_token  = Token(4);
-    if (Sym(5) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(5);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(6);
+    AstMethodInvocation* p = ast_pool -> NewMethodInvocation(Token(4));
+    p -> base_opt = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> type_arguments_opt = MakeExplicitTypeArguments(3);
+    p -> arguments = DYNAMIC_CAST<AstArguments*> (Sym(5));
     Sym(1) = p;
 }
 ./
 
-MethodInvocation ::= 'super' '.' 'Identifier' '(' ArgumentListopt ')'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    MakeSuperFieldAccess();
+--
+-- Parameterized types were added in JSR 14.
+--
+MethodInvocation ::= Name '.' TypeArguments 'Identifier' Arguments
+\:$MakeMethodInvocation:\
+/.$shared_function
+//
+// void MakeMethodInvocation();
+//./
 
-    AstMethodInvocation *p = ast_pool -> NewMethodInvocation();
-    p -> method                  = (AstExpression *) Sym(1);
-    p -> left_parenthesis_token  = Token(4);
-    if (Sym(5) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(5);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(6);
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.
+--
+--MethodInvocation ::= Primary '.' 'Identifier' '(' ArgumentListopt ')'
+MethodInvocation ::= Primary '.' Marker 'Identifier' Arguments
+\:$MakeMethodInvocation:\
+/.$shared_function
+//
+// void MakeMethodInvocation();
+//./
 
---1.2 feature
-MethodInvocation ::= Name '.' 'super' '.' 'Identifier' '(' ArgumentListopt ')'
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    MakeSuperDoubleFieldAccess();
+--
+-- Parameterized types were added in JSR 14.
+--
+MethodInvocation ::= Primary '.' TypeArguments 'Identifier' Arguments
+\:$MakeMethodInvocation:\
+/.$shared_function
+//
+// void MakeMethodInvocation();
+//./
 
-    AstMethodInvocation *p = ast_pool -> NewMethodInvocation();
-    p -> method                  = (AstExpression *) Sym(1);
-    p -> left_parenthesis_token  = Token(6);
-    if (Sym(7) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(7);
-        p -> AllocateArguments(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddArgument((AstExpression *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token = Token(8);
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.  Likewise, SuperAccess
+-- simplifies tree creation.
+--
+--MethodInvocation ::= 'super' '.' 'Identifier' '(' ArgumentListopt ')'
+--MethodInvocation ::= ClassType '.' 'super' '.' 'Identifier' '('
+--                     ArgumentListopt ')'
+MethodInvocation ::= SuperAccess '.' Marker 'Identifier' Arguments
+\:$MakeMethodInvocation:\
+/.$shared_function
+//
+// void MakeMethodInvocation();
+//./
+
+--
+-- Parameterized types were added in JSR 14.  Likewise, SuperAccess
+-- simplifies tree creation.
+--
+--MethodInvocation ::= 'super' '.' TypeArguments 'Identifier' '('
+--                     ArgumentListopt ')'
+--MethodInvocation ::= ClassType '.' 'super' '.' TypeArguments 'Identifier' '('
+--                     ArgumentListopt ')'
+MethodInvocation ::= SuperAccess '.' TypeArguments 'Identifier' Arguments
+\:$MakeMethodInvocation:\
+/.$shared_function
+//
+// void MakeMethodInvocation();
+//./
 
 ArrayAccess ::= Name '[' Expression ']'
 \:$MakeArrayAccess:\
 /.$location
-void Parser::MakeArrayAccess(void)
+void Parser::MakeArrayAccess()
 {
-    AstArrayAccess *p = ast_pool -> NewArrayAccess();
-    p -> base                = (AstExpression *) Sym(1);
-    p -> left_bracket_token  = Token(2);
-    p -> expression          = (AstExpression *) Sym(3);
+    AstArrayAccess* p = ast_pool -> NewArrayAccess();
+    p -> base = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> left_bracket_token = Token(2);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
     p -> right_bracket_token = Token(4);
     Sym(1) = p;
 }
@@ -4057,32 +4876,56 @@ ArrayAccess ::= PrimaryNoNewArray '[' Expression ']'
 \:$MakeArrayAccess:\
 /.$shared_function
 //
-// void MakeArrayAccess(void);
+// void MakeArrayAccess();
 //./
 
-PostfixExpression -> Primary
+--1.2 feature
+--
+-- Access of an initialized array is legal.  See above.
+--
+ArrayAccess ::= ArrayCreationInitialized '[' Expression ']'
+\:$MakeArrayAccess:\
+/.$shared_function
+//
+// void MakeArrayAccess();
+//./
+
+PostfixExpression ::= Primary
 \:$NoAction:\
 /.$shared_NoAction./
 
-PostfixExpression -> Name
+PostfixExpression ::= Name
 \:$NoAction:\
 /.$shared_NoAction./
 
-PostfixExpression -> PostIncrementExpression
+PostfixExpression ::= PostIncrementExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
-PostfixExpression -> PostDecrementExpression
+PostfixExpression ::= PostDecrementExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+PostfixExpressionNotName ::= Primary
+\:$NoAction:\
+/.$shared_NoAction./
+
+PostfixExpressionNotName ::= PostIncrementExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+PostfixExpressionNotName ::= PostDecrementExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 PostIncrementExpression ::= PostfixExpression '++'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstPostUnaryExpression *p = ast_pool -> NewPostUnaryExpression(AstPostUnaryExpression::PLUSPLUS);
-    p -> expression          = (AstExpression *) Sym(1);
+    AstPostUnaryExpression* p =
+        ast_pool -> NewPostUnaryExpression(AstPostUnaryExpression::PLUSPLUS);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
     p -> post_operator_token = Token(2);
     Sym(1) = p;
 }
@@ -4091,653 +4934,746 @@ void Parser::Act$rule_number(void)
 PostDecrementExpression ::= PostfixExpression '--'
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstPostUnaryExpression *p = ast_pool -> NewPostUnaryExpression(AstPostUnaryExpression::MINUSMINUS);
-    p -> expression          = (AstExpression *) Sym(1);
+    AstPostUnaryExpression* p =
+        ast_pool -> NewPostUnaryExpression(AstPostUnaryExpression::MINUSMINUS);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
     p -> post_operator_token = Token(2);
     Sym(1) = p;
 }
 ./
 
-UnaryExpression -> PreIncrementExpression
+UnaryExpression ::= PreIncrementExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
-UnaryExpression -> PreDecrementExpression
+UnaryExpression ::= PreDecrementExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 UnaryExpression ::= '+' UnaryExpression
-\:$action:\
+\:$MakePreUnaryExpression:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakePreUnaryExpression()
 {
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::PLUS);
+    AstPreUnaryExpression::PreUnaryExpressionTag tag;
+    switch (lex_stream -> Kind(Token(1)))
+    {
+    case TK_PLUS_PLUS: tag = AstPreUnaryExpression::PLUSPLUS; break;
+    case TK_MINUS_MINUS: tag = AstPreUnaryExpression::MINUSMINUS; break;
+    case TK_PLUS: tag = AstPreUnaryExpression::PLUS; break;
+    case TK_MINUS: tag = AstPreUnaryExpression::MINUS; break;
+    case TK_TWIDDLE: tag = AstPreUnaryExpression::TWIDDLE; break;
+    case TK_NOT: tag = AstPreUnaryExpression::NOT; break;
+    default: tag = AstPreUnaryExpression::NONE;
+    }
+    AstPreUnaryExpression* p = ast_pool -> NewPreUnaryExpression(tag);
     p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(2));
     Sym(1) = p;
 }
 ./
 
 UnaryExpression ::= '-' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::MINUS);
-    p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
-    Sym(1) = p;
-}
-./
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
 
-UnaryExpression -> UnaryExpressionNotPlusMinus
+UnaryExpression ::= UnaryExpressionNotPlusMinus
+\:$NoAction:\
+/.$shared_NoAction./
+
+UnaryExpressionNotName ::= PreIncrementExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+UnaryExpressionNotName ::= PreDecrementExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+UnaryExpressionNotName ::= '+' UnaryExpression
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
+
+UnaryExpressionNotName ::= '-' UnaryExpression
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
+
+UnaryExpressionNotName ::= UnaryExpressionNotPlusMinusNotName
 \:$NoAction:\
 /.$shared_NoAction./
 
 PreIncrementExpression ::= '++' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::PLUSPLUS);
-    p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
-    Sym(1) = p;
-}
-./
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
 
 PreDecrementExpression ::= '--' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::MINUSMINUS);
-    p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
-    Sym(1) = p;
-}
-./
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
 
-UnaryExpressionNotPlusMinus -> PostfixExpression
+UnaryExpressionNotPlusMinus ::= PostfixExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 UnaryExpressionNotPlusMinus ::= '~' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::TWIDDLE);
-    p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
-    Sym(1) = p;
-}
-./
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
 
 UnaryExpressionNotPlusMinus ::= '!' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstPreUnaryExpression *p = ast_pool -> NewPreUnaryExpression(AstPreUnaryExpression::NOT);
-    p -> pre_operator_token = Token(1);
-    p -> expression         = (AstExpression *) Sym(2);
-    Sym(1) = p;
-}
-./
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
 
-UnaryExpressionNotPlusMinus -> CastExpression
+UnaryExpressionNotPlusMinus ::= CastExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
+UnaryExpressionNotPlusMinusNotName ::= PostfixExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+UnaryExpressionNotPlusMinusNotName ::= '~' UnaryExpression
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
+
+UnaryExpressionNotPlusMinusNotName ::= '!' UnaryExpression
+\:$MakePreUnaryExpression:\
+/.$shared_Unary./
+
+UnaryExpressionNotPlusMinusNotName ::= CastExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Due to grammar ambiguities, we must rewrite this (otherwise, it is not
+-- obvious whether "(a<b" starts a parenthesized expression or a cast). Note
+-- that our rewrite guarantees that the contents of the parenthesis will
+-- syntactically be a type, based on the way we factored parenthesized
+-- expressions in Primary.
+--
+-- JLS2 15 lists:
+--CastExpression ::= '(' PrimitiveType ')' UnaryExpression
+--CastExpression ::= '(' ReferenceType ')' UnaryExpressionNotPlusMinus
+-- JLS1 suggests:
+--CastExpression ::= '(' PrimitiveType Dimsopt ')' UnaryExpression
+--CastExpression ::= '(' Expression ')' UnaryExpressionNotPlusMinus
+--CastExpression ::= '(' Name Dims ')' UnaryExpressionNotPlusMinus
+--
 CastExpression ::= '(' PrimitiveType Dimsopt ')' UnaryExpression
 \:$MakeCastExpression:\
 /.$location
-void Parser::MakeCastExpression(void)
+void Parser::MakeCastExpression() { MakeCastExpression(MakeArrayType(2), 4); }
+
+//
+// Builds a cast expression. type must be the target AstType, and tokennum
+// should point to the ')'.
+//
+void Parser::MakeCastExpression(AstType* type, int tokennum)
 {
-    AstCastExpression *p = ast_pool -> NewCastExpression();
-    p -> left_parenthesis_token_opt  = Token(1);
-    p -> type_opt                    = Sym(2);
-    if (Sym(3) != NULL)
-    {
-        AstListNode *tail = (AstListNode *) Sym(3);
-        p -> AllocateBrackets(tail -> index + 1);
-        AstListNode *root = tail;
-        do
-        {
-            root = root -> next;
-            p -> AddBrackets((AstBrackets *) root -> element);
-        } while(root != tail);
-        FreeCircularList(tail);
-    }
-    p -> right_parenthesis_token_opt = Token(4);
-    p -> expression                  = (AstExpression *) Sym(5);
+    AstCastExpression* p = ast_pool -> NewCastExpression();
+    p -> left_parenthesis_token = Token(1);
+    p -> type = type;
+    p -> right_parenthesis_token = Token(tokennum);
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(tokennum + 1));
     Sym(1) = p;
 }
 ./
 
-CastExpression ::= '(' Expression ')' UnaryExpressionNotPlusMinus
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    //
-    // Note that Expression must be a name - i.e., Sym(2) -> isName() == true
-    // This check is not performed here and should be performed during
-    // semantic processing.
-    //
-    AstCastExpression *p = ast_pool -> NewCastExpression();
-    p -> left_parenthesis_token_opt  = Token(1);
-    p -> type_opt                    = Sym(2);
-    p -> right_parenthesis_token_opt = Token(3);
-    p -> expression                  = (AstExpression *) Sym(4);
-    Sym(1) = p;
-}
-./
+--
+-- The use of Marker allows us to share code.
+--
+CastExpression ::= '(' Name Marker ')' UnaryExpressionNotPlusMinus
+\:$MakeCastExpression:\
+/.$shared_function
+//
+// void MakeCastExpression();
+//./
 
 CastExpression ::= '(' Name Dims ')' UnaryExpressionNotPlusMinus
 \:$MakeCastExpression:\
 /.$shared_function
 //
-// void MakeCastExpression(void);
+// void MakeCastExpression();
 //./
 
-MultiplicativeExpression -> UnaryExpression
+--
+-- Parameterized types were added in JSR 14.
+--
+CastExpression ::= '(' Name '<' TypeArgumentList1 Dimsopt ')'
+                   UnaryExpressionNotPlusMinus
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    Sym(4) = MakeTypeArguments(2);
+    MakeCastExpression(MakeArrayType(4), 6);
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+CastExpression ::= '(' Name '<' TypeArgumentList1 '.' ClassOrInterfaceType
+                   Dimsopt ')' UnaryExpressionNotPlusMinus
+\:$action:\
+/.$location
+void Parser::Act$rule_number()
+{
+    AstTypeName* p = DYNAMIC_CAST<AstTypeName*> (Sym(6));
+    while (p -> base_opt)
+        p = p -> base_opt;
+    p -> base_opt = MakeTypeArguments(2);
+    MakeCastExpression(MakeArrayType(6), 8);
+}
+./
+
+MultiplicativeExpression ::= UnaryExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 MultiplicativeExpression ::= MultiplicativeExpression '*' UnaryExpression
-\:$action:\
+\:$MakeBinaryExpression:\
 /.$location
-void Parser::Act$rule_number(void)
+//
+// This creates a binary expression of the named type.
+//
+void Parser::MakeBinaryExpression()
 {
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::STAR);
-    p -> left_expression       = (AstExpression *) Sym(1);
+    AstBinaryExpression::BinaryExpressionTag tag;
+    switch (lex_stream -> Kind(Token(2)))
+    {
+    case TK_MULTIPLY: tag = AstBinaryExpression::STAR; break;
+    case TK_DIVIDE: tag = AstBinaryExpression::SLASH; break;
+    case TK_REMAINDER: tag = AstBinaryExpression::MOD; break;
+    case TK_PLUS: tag = AstBinaryExpression::PLUS; break;
+    case TK_MINUS: tag = AstBinaryExpression::MINUS; break;
+    case TK_LEFT_SHIFT: tag = AstBinaryExpression::LEFT_SHIFT; break;
+    case TK_RIGHT_SHIFT: tag = AstBinaryExpression::RIGHT_SHIFT; break;
+    case TK_UNSIGNED_RIGHT_SHIFT:
+        tag = AstBinaryExpression::UNSIGNED_RIGHT_SHIFT; break;
+    case TK_LESS: tag = AstBinaryExpression::LESS; break;
+    case TK_GREATER: tag = AstBinaryExpression::GREATER; break;
+    case TK_LESS_EQUAL: tag = AstBinaryExpression::LESS_EQUAL; break;
+    case TK_GREATER_EQUAL: tag = AstBinaryExpression::GREATER_EQUAL; break;
+    case TK_EQUAL_EQUAL: tag = AstBinaryExpression::EQUAL_EQUAL; break;
+    case TK_NOT_EQUAL: tag = AstBinaryExpression::NOT_EQUAL; break;
+    case TK_AND: tag = AstBinaryExpression::AND; break;
+    case TK_XOR: tag = AstBinaryExpression::XOR; break;
+    case TK_OR: tag = AstBinaryExpression::IOR; break;
+    case TK_AND_AND: tag = AstBinaryExpression::AND_AND; break;
+    case TK_OR_OR: tag = AstBinaryExpression::OR_OR; break;
+    default: tag = AstBinaryExpression::NONE;
+    }
+    AstBinaryExpression* p = ast_pool -> NewBinaryExpression(tag);
+    p -> left_expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
     p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
+    p -> right_expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
     Sym(1) = p;
 }
 ./
 
 MultiplicativeExpression ::= MultiplicativeExpression '/' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::SLASH);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 MultiplicativeExpression ::= MultiplicativeExpression '%' UnaryExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::MOD);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-AdditiveExpression -> MultiplicativeExpression
+MultiplicativeExpressionNotName ::= UnaryExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+MultiplicativeExpressionNotName ::= MultiplicativeExpressionNotName '*'
+                                    UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+MultiplicativeExpressionNotName ::= Name '*' UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+MultiplicativeExpressionNotName ::= MultiplicativeExpressionNotName '/'
+                                    UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+MultiplicativeExpressionNotName ::= Name '/' UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+MultiplicativeExpressionNotName ::= MultiplicativeExpressionNotName '%'
+                                    UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+MultiplicativeExpressionNotName ::= Name '%' UnaryExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+AdditiveExpression ::= MultiplicativeExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 AdditiveExpression ::= AdditiveExpression '+' MultiplicativeExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::PLUS);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 AdditiveExpression ::= AdditiveExpression '-' MultiplicativeExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::MINUS);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-ShiftExpression -> AdditiveExpression
+AdditiveExpressionNotName ::= MultiplicativeExpressionNotName
 \:$NoAction:\
 /.$shared_NoAction./
 
-ShiftExpression ::= ShiftExpression '<<'  AdditiveExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::LEFT_SHIFT);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+AdditiveExpressionNotName ::= AdditiveExpressionNotName '+'
+                              MultiplicativeExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-ShiftExpression ::= ShiftExpression '>>'  AdditiveExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::RIGHT_SHIFT);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+AdditiveExpressionNotName ::= Name '+' MultiplicativeExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+AdditiveExpressionNotName ::= AdditiveExpressionNotName '-'
+                              MultiplicativeExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+AdditiveExpressionNotName ::= Name '-' MultiplicativeExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpression ::= AdditiveExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+ShiftExpression ::= ShiftExpression '<<' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpression ::= ShiftExpression '>>' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 ShiftExpression ::= ShiftExpression '>>>' AdditiveExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::UNSIGNED_RIGHT_SHIFT);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-RelationalExpression -> ShiftExpression
+ShiftExpressionNotName ::= AdditiveExpressionNotName
 \:$NoAction:\
 /.$shared_NoAction./
 
-RelationalExpression ::= RelationalExpression '<'  ShiftExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::LESS);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+ShiftExpressionNotName ::= ShiftExpressionNotName '<<' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-RelationalExpression ::= RelationalExpression '>'  ShiftExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::GREATER);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+ShiftExpressionNotName ::= Name '<<' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpressionNotName ::= ShiftExpressionNotName '>>' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpressionNotName ::= Name '>>' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpressionNotName ::= ShiftExpressionNotName '>>>' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ShiftExpressionNotName ::= Name '>>>' AdditiveExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpression ::= ShiftExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Relational expressions do not operate on boolean. Rewriting this
+-- rule avoids an ambiguity in generics with no semantic penalty. The
+-- alternative is to lower the precedence of instanceof.
+--
+--RelationalExpression ::= RelationalExpression '<' ShiftExpression
+RelationalExpression ::= ShiftExpression '<' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpression ::= RelationalExpression '>' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 RelationalExpression ::= RelationalExpression '<=' ShiftExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::LESS_EQUAL);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 RelationalExpression ::= RelationalExpression '>=' ShiftExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::GREATER_EQUAL);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 RelationalExpression ::= RelationalExpression 'instanceof' ReferenceType
-\:$action:\
+\:$MakeInstanceofExpression:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeInstanceofExpression()
 {
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::INSTANCEOF);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = ast_pool -> NewTypeExpression(Sym(3));
+    AstInstanceofExpression* p = ast_pool -> NewInstanceofExpression();
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> instanceof_token = Token(2);
+    p -> type = DYNAMIC_CAST<AstType*> (Sym(3));
     Sym(1) = p;
 }
 ./
 
-EqualityExpression -> RelationalExpression
+RelationalExpressionNotName ::= ShiftExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+--RelationalExpressionNotName ::= RelationalExpressionNotName '<'
+--                                ShiftExpression
+RelationalExpressionNotName ::= ShiftExpressionNotName '<' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= Name '<' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+--RelationalExpressionNotName ::= RelationalExpressionNotName '>'
+--                                ShiftExpression
+RelationalExpressionNotName ::= ShiftExpressionNotName '>' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= Name '>' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= RelationalExpressionNotName '<='
+                                ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= Name '<=' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= RelationalExpressionNotName '>='
+                                ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= Name '>=' ShiftExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+RelationalExpressionNotName ::= RelationalExpressionNotName 'instanceof'
+                                ReferenceType
+\:$MakeInstanceofExpression:\
+/.$shared_function
+//
+// void MakeInstanceofExpression();
+//./
+
+RelationalExpressionNotName ::= Name 'instanceof' ReferenceType
+\:$MakeInstanceofExpression:\
+/.$shared_function
+//
+// void MakeInstanceofExpression();
+//./
+
+EqualityExpression ::= RelationalExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 EqualityExpression ::= EqualityExpression '==' RelationalExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::EQUAL_EQUAL);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
 EqualityExpression ::= EqualityExpression '!=' RelationalExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::NOT_EQUAL);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
+EqualityExpressionNotName ::= RelationalExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
 
-AndExpression -> EqualityExpression
+EqualityExpressionNotName ::= EqualityExpressionNotName '=='
+                              RelationalExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+EqualityExpressionNotName ::= Name '==' RelationalExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+EqualityExpressionNotName ::= EqualityExpressionNotName '!='
+                              RelationalExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+EqualityExpressionNotName ::= Name '!=' RelationalExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+AndExpression ::= EqualityExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 AndExpression ::= AndExpression '&' EqualityExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::AND);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-ExclusiveOrExpression -> AndExpression
+AndExpressionNotName ::= EqualityExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+AndExpressionNotName ::= AndExpressionNotName '&' EqualityExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+AndExpressionNotName ::= Name '&' EqualityExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ExclusiveOrExpression ::= AndExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 ExclusiveOrExpression ::= ExclusiveOrExpression '^' AndExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::XOR);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
 
-InclusiveOrExpression -> ExclusiveOrExpression
+ExclusiveOrExpressionNotName ::= AndExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+ExclusiveOrExpressionNotName ::= ExclusiveOrExpressionNotName '^' AndExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ExclusiveOrExpressionNotName ::= Name '^' AndExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+InclusiveOrExpression ::= ExclusiveOrExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
 InclusiveOrExpression ::= InclusiveOrExpression '|' ExclusiveOrExpression
-\:$action:\
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+InclusiveOrExpressionNotName ::= ExclusiveOrExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+InclusiveOrExpressionNotName ::= InclusiveOrExpressionNotName '|'
+                                 ExclusiveOrExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+InclusiveOrExpressionNotName ::= Name '|' ExclusiveOrExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalAndExpression ::= InclusiveOrExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConditionalAndExpression ::= ConditionalAndExpression '&&'
+                             InclusiveOrExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalAndExpressionNotName ::= InclusiveOrExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConditionalAndExpressionNotName ::= ConditionalAndExpressionNotName '&&'
+                                    InclusiveOrExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalAndExpressionNotName ::= Name '&&' InclusiveOrExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalOrExpression ::= ConditionalAndExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConditionalOrExpression ::= ConditionalOrExpression '||'
+                            ConditionalAndExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalOrExpressionNotName ::= ConditionalAndExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConditionalOrExpressionNotName ::= ConditionalOrExpressionNotName '||'
+                                   ConditionalAndExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalOrExpressionNotName ::= Name '||' ConditionalAndExpression
+\:$MakeBinaryExpression:\
+/.$shared_Binary./
+
+ConditionalExpression ::= ConditionalOrExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+ConditionalExpression ::= ConditionalOrExpression '?' Expression ':'
+                          ConditionalExpression
+\:$MakeConditionalExpression:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::MakeConditionalExpression()
 {
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::IOR);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
+    AstConditionalExpression* p = ast_pool -> NewConditionalExpression();
+    p -> test_expression = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> question_token = Token(2);
+    p -> true_expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
+    p -> colon_token = Token(4);
+    p -> false_expression = DYNAMIC_CAST<AstExpression*> (Sym(5));
     Sym(1) = p;
 }
 ./
 
-ConditionalAndExpression -> InclusiveOrExpression
+ConditionalExpressionNotName ::= ConditionalOrExpressionNotName
 \:$NoAction:\
 /.$shared_NoAction./
 
-ConditionalAndExpression ::= ConditionalAndExpression '&&' InclusiveOrExpression
+ConditionalExpressionNotName ::= ConditionalOrExpressionNotName '?' Expression
+                                 ':' ConditionalExpression
+\:$MakeConditionalExpression:\
+/.$shared_function
+//
+// void MakeConditionalExpression();
+//./
+
+ConditionalExpressionNotName ::= Name '?' Expression ':' ConditionalExpression
+\:$MakeConditionalExpression:\
+/.$shared_function
+//
+// void MakeConditionalExpression();
+//./
+
+AssignmentExpression ::= ConditionalExpression
+\:$NoAction:\
+/.$shared_NoAction./
+
+AssignmentExpression ::= Assignment
+\:$NoAction:\
+/.$shared_NoAction./
+
+AssignmentExpressionNotName ::= ConditionalExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+AssignmentExpressionNotName ::= Assignment
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- The original grammar uses LeftHandSide, instead of PostfixExpression.
+-- However, parenthesized variables were added in JLS 2, and the
+-- grammar is ambiguous unless we include all non-assignment
+-- expressions. The semantic pass will filter out bad left-hand sides.
+--
+--Assignment ::= LeftHandSide AssignmentOperator AssignmentExpression
+Assignment ::= PostfixExpression AssignmentOperator AssignmentExpression
 \:$action:\
 /.$location
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::AND_AND);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
+    AstAssignmentExpression::AssignmentExpressionTag tag;
+    switch (lex_stream -> Kind(Token(2)))
+    {
+    case TK_EQUAL: tag = AstAssignmentExpression::SIMPLE_EQUAL; break;
+    case TK_MULTIPLY_EQUAL: tag = AstAssignmentExpression::STAR_EQUAL; break;
+    case TK_DIVIDE_EQUAL: tag = AstAssignmentExpression::SLASH_EQUAL; break;
+    case TK_REMAINDER_EQUAL: tag = AstAssignmentExpression::MOD_EQUAL; break;
+    case TK_PLUS_EQUAL: tag = AstAssignmentExpression::PLUS_EQUAL; break;
+    case TK_MINUS_EQUAL: tag = AstAssignmentExpression::MINUS_EQUAL; break;
+    case TK_LEFT_SHIFT_EQUAL:
+        tag = AstAssignmentExpression::LEFT_SHIFT_EQUAL; break;
+    case TK_RIGHT_SHIFT_EQUAL:
+        tag = AstAssignmentExpression::RIGHT_SHIFT_EQUAL; break;
+    case TK_UNSIGNED_RIGHT_SHIFT_EQUAL:
+        tag = AstAssignmentExpression::UNSIGNED_RIGHT_SHIFT_EQUAL; break;
+    case TK_AND_EQUAL: tag = AstAssignmentExpression::AND_EQUAL; break;
+    case TK_XOR_EQUAL: tag = AstAssignmentExpression::XOR_EQUAL; break;
+    case TK_OR_EQUAL: tag = AstAssignmentExpression::IOR_EQUAL; break;
+    default: tag = AstAssignmentExpression::NONE;
+    }
+    AstAssignmentExpression* p =
+        ast_pool -> NewAssignmentExpression(tag, Token(2));
+    p -> left_hand_side = DYNAMIC_CAST<AstExpression*> (Sym(1));
+    p -> expression = DYNAMIC_CAST<AstExpression*> (Sym(3));
     Sym(1) = p;
 }
 ./
 
-ConditionalOrExpression -> ConditionalAndExpression
-\:$NoAction:\
-/.$shared_NoAction./
-
-ConditionalOrExpression ::= ConditionalOrExpression '||' ConditionalAndExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstBinaryExpression *p = ast_pool -> NewBinaryExpression(AstBinaryExpression::OR_OR);
-    p -> left_expression       = (AstExpression *) Sym(1);
-    p -> binary_operator_token = Token(2);
-    p -> right_expression      = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
-
-ConditionalExpression -> ConditionalOrExpression
-\:$NoAction:\
-/.$shared_NoAction./
-
-ConditionalExpression ::= ConditionalOrExpression '?' Expression ':' ConditionalExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstConditionalExpression *p = ast_pool -> NewConditionalExpression();
-    p -> test_expression  = (AstExpression *) Sym(1);
-    p -> question_token   = Token(2);
-    p -> true_expression  = (AstExpression *) Sym(3);
-    p -> colon_token      = Token(4);
-    p -> false_expression = (AstExpression *) Sym(5);
-    Sym(1) = p;
-}
-./
-
-AssignmentExpression -> ConditionalExpression
-\:$NoAction:\
-/.$shared_NoAction./
-
-AssignmentExpression -> Assignment
-\:$NoAction:\
-/.$shared_NoAction./
-
-Assignment ::= LeftHandSide AssignmentOperator AssignmentExpression
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    AstAssignmentExpression *p = (AstAssignmentExpression *) Sym(2);
-    p -> left_hand_side = (AstExpression *) Sym(1);
-    p -> expression     = (AstExpression *) Sym(3);
-    Sym(1) = p;
-}
-./
-
-LeftHandSide -> Name
-\:$NoAction:\
-/.$shared_NoAction./
-
-LeftHandSide -> FieldAccess
-\:$NoAction:\
-/.$shared_NoAction./
-
-LeftHandSide -> ArrayAccess
-\:$NoAction:\
-/.$shared_NoAction./
+--
+-- See comments above for Assignment - LeftHandSide is now a useless rule.
+--
+--LeftHandSide -> Name
+--LeftHandSide -> FieldAccess
+--LeftHandSide -> ArrayAccess
 
 AssignmentOperator ::= '='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::SIMPLE_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '*='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::STAR_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '/='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::SLASH_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '%='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::MOD_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '+='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::PLUS_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '-='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::MINUS_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '<<='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::LEFT_SHIFT_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '>>='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::RIGHT_SHIFT_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '>>>='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::UNSIGNED_RIGHT_SHIFT_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '&='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::AND_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '^='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::XOR_EQUAL, Token(1));
-}
-./
+\:$NoAction:\
+/.$shared_NoAction./
 
 AssignmentOperator ::= '|='
-\:$action:\
-/.$location
-void Parser::Act$rule_number(void)
-{
-    Sym(1) = ast_pool -> NewAssignmentExpression(AstAssignmentExpression::IOR_EQUAL, Token(1));
-}
-./
-
-Expression -> AssignmentExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
-ConstantExpression -> Expression
-\:$NoAction:\
-/.$shared_NoAction./
-
----------------------------------------------------------------------------------------
---
--- The following rules are for optional nonterminals.
---
----------------------------------------------------------------------------------------
-
-PackageDeclarationopt ::= $empty
-\:$NullAction:\
-/.$location
-//
-// Given a rule of the form A ::= x1 x2 ... xn
-//
-// Construct a NULL Ast for A.
-//
-void Parser::NullAction(void) { Sym(1) = NULL; }
-./
-
-PackageDeclarationopt -> PackageDeclaration
-\:$NoAction:\
-/.$shared_NoAction./
-
-Superopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Superopt -> Super
+Expression ::= AssignmentExpression
 \:$NoAction:\
 /.$shared_NoAction./
 
@@ -4745,157 +5681,46 @@ Expressionopt ::= $empty
 \:$NullAction:\
 /.$shared_NullAction./
 
-Expressionopt -> Expression
+Expressionopt ::= Expression
 \:$NoAction:\
 /.$shared_NoAction./
 
---1.1 feature
-ClassBodyopt ::= $empty
+ExpressionNotName ::= AssignmentExpressionNotName
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Simplify the syntax tree.
+--
+--ConstantExpression ::= Expression
+
+-----------------------------------------------------------------------------
+--
+-- The following rules are for optional and helper productions.
+--
+-----------------------------------------------------------------------------
+
+--
+-- This rule exists solely to put NULL on the symbol stack, allowing us to
+-- share productions that differ by the presence or absence of a rule.
+--
+Marker ::= $empty
 \:$NullAction:\
 /.$shared_NullAction./
-
---1.1 feature
-ClassBodyopt -> ClassBody
-\:$NoAction:\
-/.$shared_NoAction./
-
----------------------------------------------------------------------------------------
---
--- The rules below are for optional terminal symbols.  An optional comma,
--- is only used in the context of an array initializer - It is a
--- "syntactic sugar" that otherwise serves no other purpose. By contrast,
--- an optional identifier is used in the definition of a break and
--- continue statement. When the identifier does not appear, a NULL
--- is produced. When the identifier is present, the user should use the
--- corresponding Token(i) method. See break statement as an example.
---
----------------------------------------------------------------------------------------
 
 ,opt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-,opt -> ,
 \:$NoAction:\
 /.$shared_NoAction./
 
-ImportDeclarationsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ImportDeclarationsopt -> ImportDeclarations
+,opt ::= ','
 \:$NoAction:\
 /.$shared_NoAction./
 
-TypeDeclarationsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-TypeDeclarationsopt -> TypeDeclarations
+Identifieropt ::= $empty
 \:$NoAction:\
 /.$shared_NoAction./
 
-ClassBodyDeclarationsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ClassBodyDeclarationsopt -> ClassBodyDeclarations
-\:$NoAction:\
-/.$shared_NoAction./
-
-Modifiersopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Modifiersopt -> Modifiers
-\:$NoAction:\
-/.$shared_NoAction./
-
-BlockStatementsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-BlockStatementsopt -> BlockStatements
-\:$NoAction:\
-/.$shared_NoAction./
-
-Dimsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Dimsopt -> Dims
-\:$NoAction:\
-/.$shared_NoAction./
-
-ArgumentListopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ArgumentListopt -> ArgumentList
-\:$NoAction:\
-/.$shared_NoAction./
-
-Throwsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Throwsopt -> Throws
-\:$NoAction:\
-/.$shared_NoAction./
-
-FormalParameterListopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-FormalParameterListopt -> FormalParameterList
-\:$NoAction:\
-/.$shared_NoAction./
-
-Interfacesopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Interfacesopt -> Interfaces
-\:$NoAction:\
-/.$shared_NoAction./
-
-InterfaceMemberDeclarationsopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-InterfaceMemberDeclarationsopt -> InterfaceMemberDeclarations
-\:$NoAction:\
-/.$shared_NoAction./
-
-ForInitopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ForInitopt -> ForInit
-\:$NoAction:\
-/.$shared_NoAction./
-
-ForUpdateopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ForUpdateopt -> ForUpdate
-\:$NoAction:\
-/.$shared_NoAction./
-
-ExtendsInterfacesopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-ExtendsInterfacesopt -> ExtendsInterfaces
-\:$NoAction:\
-/.$shared_NoAction./
-
-Catchesopt ::= $empty
-\:$NullAction:\
-/.$shared_NullAction./
-
-Catchesopt -> Catches
+Identifieropt ::= 'Identifier'
 \:$NoAction:\
 /.$shared_NoAction./
 
@@ -4906,10 +5731,11 @@ PackageHeaderMarker ::= $empty
 // When this function is invoked, if the "parse_package_header_only" flag
 // is turned on, we skip to the end-of-file token.
 //
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     if (parse_package_header_only)
-        lex_stream -> Reset(lex_stream -> NumTokens() - 1); // point to the EOF token
+        // point to the EOF token
+        lex_stream -> Reset(lex_stream -> NumTokens() - 1);
     Sym(1) = NULL;
 }
 ./
@@ -4921,7 +5747,7 @@ MethodHeaderMarker ::= $empty
 // When this function is invoked, if the "parse_header_only" flag
 // is turned on, the body of the method being parsed is skipped.
 //
-void Parser::Act$rule_number(void)
+void Parser::Act$rule_number()
 {
     if (parse_header_only)
     {
@@ -4935,77 +5761,704 @@ void Parser::Act$rule_number(void)
         if (lex_stream -> Kind(token) == TK_LBRACE)
             lex_stream -> Reset(lex_stream -> MatchingBrace(token));
     }
-
     Sym(1) = NULL;
 }
 ./
 
----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+--
+-- These rules add generics. Also search for JSR 14 in the comments above.
+--
+-----------------------------------------------------------------------------
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArguments ::= '<' TypeArgumentList1
+\:$SetSym1ToSym2:\
+/.$shared_function
+//
+// void SetSym1ToSym2();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentsopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentsopt ::= TypeArguments
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14. We inline expanded WildcardBounds
+-- for simplicity. The use of Marker allows us to share code.
+--
+--Wildcard ::= '?' WildcardBoundsopt
+--WildcardBounds ::= extends ReferenceType
+--WildcardBounds ::= super ReferenceType
+--
+Wildcard ::= '?' Marker Marker Marker
+\:$MakeWildcard:\
+/.$location
+void Parser::MakeWildcard()
+{
+    AstWildcard* p = ast_pool -> NewWildcard(Token(1));
+    if (Token(3) > Token(2))
+    {
+        p -> extends_token_opt = Token(2);
+        p -> bounds_opt = DYNAMIC_CAST<AstType*> (Sym(4));
+    }
+    else if (Token(4) > Token(3))
+    {
+        p -> super_token_opt = Token(3);
+        p -> bounds_opt = DYNAMIC_CAST<AstType*> (Sym(4));
+    }
+    Sym(1) = p;
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard ::= '?' 'extends' Marker ReferenceType
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard ::= '?' Marker 'super' ReferenceType
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard1 ::= '?' Marker Marker '>'
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard1 ::= '?' 'extends' Marker ReferenceType1
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard1 ::= '?' Marker 'super' ReferenceType1
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard2 ::= '?' Marker Marker '>>'
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard2 ::= '?' 'extends' Marker ReferenceType2
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard2 ::= '?' Marker 'super' ReferenceType2
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard3 ::= '?' Marker Marker '>>>'
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard3 ::= '?' 'extends' Marker ReferenceType3
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+Wildcard3 ::= '?' Marker 'super' ReferenceType3
+\:$MakeWildcard:\
+/.$shared_function
+//
+// void MakeWildcard();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList ::= TypeArgument
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList ::= TypeArgumentList ',' TypeArgument
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList1 ::= TypeArgument1
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList1 ::= TypeArgumentList ',' TypeArgument1
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList2 ::= TypeArgument2
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList2 ::= TypeArgumentList ',' TypeArgument2
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList3 ::= TypeArgument3
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgumentList3 ::= TypeArgumentList ',' TypeArgument3
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument ::= ReferenceType
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument ::= Wildcard
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument1 ::= ReferenceType1
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument1 ::= Wildcard1
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument2 ::= ReferenceType2
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument2 ::= Wildcard2
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument3 ::= ReferenceType3
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeArgument3 ::= Wildcard3
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+ReferenceType1 ::= ReferenceType '>'
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+-- Use of Marker allows us to easily find the closing '>>'.
+--
+ReferenceType1 ::= ClassOrInterface '<' TypeArgumentList2 Marker
+\:$MakeTypeArguments:\
+/.$shared_function
+//
+// void MakeTypeArguments();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+ReferenceType2 ::= ReferenceType '>>'
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+-- Use of Marker allows us to easily find the closing '>>>'.
+--
+ReferenceType2 ::= ClassOrInterface '<' TypeArgumentList3 Marker
+\:$MakeTypeArguments:\
+/.$shared_function
+//
+// void MakeTypeArguments();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+ReferenceType3 ::= ReferenceType '>>>'
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameters ::= '<' TypeParameterList1
+\:$SetSym1ToSym2:\
+/.$shared_function
+//
+// void SetSym1ToSym2();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParametersopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParametersopt ::= TypeParameters
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameterList ::= TypeParameter
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameterList ::= TypeParameterList ',' TypeParameter
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameterList1 ::= TypeParameter1
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameterList1 ::= TypeParameterList ',' TypeParameter1
+\:$AddList3:\
+/.$shared_AddList3./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameter ::= 'Identifier' TypeBoundopt
+\:$MakeTypeParameter:\
+/.$location
+void Parser::MakeTypeParameter()
+{
+    AstTypeParameter* p = ast_pool -> NewTypeParameter(Token(1));
+    if (Sym(2))
+    {
+        //
+        // Remember, we built the circular list with the first element at
+        // the tail of the list, because of the grammar of TypeBound.
+        //
+        AstListNode* tail = DYNAMIC_CAST<AstListNode*> (Sym(2));
+        p -> AllocateBounds(tail -> index + 1);
+        AstListNode* root = tail;
+        do
+        {
+            p -> AddBound(DYNAMIC_CAST<AstTypeName*> (root -> element));
+            root = root -> next;
+        } while (root != tail);
+        FreeCircularList(tail);
+    }
+    Sym(1) = p;
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+TypeParameter1 ::= 'Identifier' Marker '>'
+\:$MakeTypeParameter:\
+/.$shared_function
+//
+// void MakeTypeParameter();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeParameter1 ::= 'Identifier' TypeBound1
+\:$MakeTypeParameter:\
+/.$shared_function
+//
+// void MakeTypeParameter();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeBound ::= 'extends' ReferenceType AdditionalBoundListopt
+\:$MakeTypeBound:\
+/.$location
+void Parser::MakeTypeBound()
+{
+    //
+    // Unlike most AstListNodes, we stick Sym(2) at the end of the list
+    // instead of the beginning. MakeTypeParameter expects this unusual
+    // ordering, because it is easier than rewriting the grammar to build the
+    // list in lexical order.
+    //
+    if (Sym(3))
+    {
+        Sym(1) = Sym(3);
+        AddList2();
+    }
+    else
+    {
+        Sym(1) = Sym(2);
+        StartList();
+    }
+}
+./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeBoundopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeBoundopt ::= TypeBound
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+-- The use of Marker allows us to share code.
+--
+TypeBound1 ::= 'extends' ReferenceType1 Marker
+\:$MakeTypeBound:\
+/.$shared_function
+//
+// void MakeTypeBound();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+TypeBound1 ::= 'extends' ReferenceType AdditionalBoundList1
+\:$MakeTypeBound:\
+/.$shared_function
+//
+// void MakeTypeBound();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundList ::= AdditionalBound
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundList ::= AdditionalBoundList AdditionalBound
+\:$AddList2:\
+/.$shared_AddList2./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundListopt ::= $empty
+\:$NullAction:\
+/.$shared_NullAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundListopt ::= AdditionalBoundList
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundList1 ::= AdditionalBound1
+\:$StartList:\
+/.$shared_StartList./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBoundList1 ::= AdditionalBoundList AdditionalBound1
+\:$AddList2:\
+/.$shared_AddList2./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBound ::= '&' ClassOrInterfaceType
+\:$SetSym1ToSym2:\
+/.$shared_function
+//
+// void SetSym1ToSym2();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+AdditionalBound1 ::= '&' ClassOrInterfaceType1
+\:$SetSym1ToSym2:\
+/.$shared_function
+//
+// void SetSym1ToSym2();
+//./
+
+--
+-- Parameterized types were added in JSR 14.
+--
+ClassOrInterfaceType1 ::= ClassOrInterfaceType '>'
+\:$NoAction:\
+/.$shared_NoAction./
+
+--
+-- Parameterized types were added in JSR 14.
+-- Use of Marker allows us to easily find the closing '>>'.
+--
+ClassOrInterfaceType1 ::= ClassOrInterface '<' TypeArgumentList2 Marker
+\:$MakeTypeArguments:\
+/.$shared_function
+//
+// void MakeTypeArguments();
+//./
+
+------ Finish off the files
+/.
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
+#endif
+./
 
 \:
 #ifndef HEADERS
     return;
 }
 
-#ifdef	HAVE_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif
+#endif // ! HEADERS
 :\
 
+-- Names allow diagnose.cpp debug output to be more legible
 $names
 
 BodyMarker ::= '"class Identifier { ... MethodHeader "'
 
-void ::= ResultType
+PLUS_PLUS ::= '++'
+MINUS_MINUS ::= '--'
+EQUAL_EQUAL ::= '=='
+LESS_EQUAL ::= '<='
+GREATER_EQUAL ::= '>='
+NOT_EQUAL ::= '!='
+LEFT_SHIFT ::= '<<'
+RIGHT_SHIFT ::= '>>'
+UNSIGNED_RIGHT_SHIFT ::= '>>>'
+PLUS_EQUAL ::= '+='
+MINUS_EQUAL ::= '-='
+MULTIPLY_EQUAL ::= '*='
+DIVIDE_EQUAL ::= '/='
+AND_EQUAL ::= '&='
+OR_EQUAL ::= '|='
+XOR_EQUAL ::= '^='
+REMAINDER_EQUAL ::= '%='
+LEFT_SHIFT_EQUAL ::= '<<='
+RIGHT_SHIFT_EQUAL ::= '>>='
+UNSIGNED_RIGHT_SHIFT_EQUAL ::= '>>>='
+OR_OR ::= '||'
+AND_AND ::= '&&'
+PLUS ::= '+'
+MINUS ::= '-'
+NOT ::= '!'
+REMAINDER ::= '%'
+XOR ::= '^'
+AND ::= '&'
+MULTIPLY ::= '*'
+OR ::= '|'
+TWIDDLE ::= '~'
+DIVIDE ::= '/'
+GREATER ::= '>'
+LESS ::= '<'
+LPAREN ::= '('
+RPAREN ::= ')'
+LBRACE ::= '{'
+RBRACE ::= '}'
+LBRACKET ::= '['
+RBRACKET ::= ']'
+SEMICOLON ::= ';'
+QUESTION ::= '?'
+COLON ::= ':'
+COMMA ::= ','
+DOT ::= '.'
+EQUAL ::= '='
+AT ::= '@'
+ELLIPSIS ::= '...'
 
-PLUS_PLUS ::=    '++'
-MINUS_MINUS ::=    '--'
-EQUAL_EQUAL ::=    '=='
-LESS_EQUAL ::=    '<='
-GREATER_EQUAL ::=    '>='
-NOT_EQUAL ::=    '!='
-LEFT_SHIFT ::=    '<<'
-RIGHT_SHIFT ::=    '>>'
-UNSIGNED_RIGHT_SHIFT ::=    '>>>'
-PLUS_EQUAL ::=    '+='
-MINUS_EQUAL ::=    '-='
-MULTIPLY_EQUAL ::=    '*='
-DIVIDE_EQUAL ::=    '/='
-AND_EQUAL ::=    '&='
-OR_EQUAL ::=    '|='
-XOR_EQUAL ::=    '^='
-REMAINDER_EQUAL ::=    '%='
-LEFT_SHIFT_EQUAL ::=    '<<='
-RIGHT_SHIFT_EQUAL ::=    '>>='
-UNSIGNED_RIGHT_SHIFT_EQUAL ::=    '>>>='
-OR_OR ::=    '||'
-AND_AND ::=    '&&'
+StatementNoShortIf ::= 'Statement'
+StatementWithoutTrailingSubstatement ::= 'Statement'
+LabeledStatementNoShortIf ::= 'LabeledStatement'
+IfThenElseStatementNoShortIf ::= 'IfThenElseStatement'
+WhileStatementNoShortIf ::= 'WhileStatement'
+ForStatementNoShortIf ::= 'ForStatement'
+ForeachStatementNoShortIf ::= 'ForeachStatement'
+UnaryExpressionNotPlusMinus ::= 'UnaryExpression'
 
-PLUS ::=    '+'
-MINUS ::=    '-'
-NOT ::=    '!'
-REMAINDER ::=    '%'
-XOR ::=    '^'
-AND ::=    '&'
-MULTIPLY ::=    '*'
-OR ::=    '|'
-TWIDDLE ::=    '~'
-DIVIDE ::=    '/'
-GREATER ::=    '>'
-LESS ::=    '<'
-LPAREN ::=    '('
-RPAREN ::=    ')'
-LBRACE ::=    '{'
-RBRACE ::=    '}'
-LBRACKET ::=    '['
-RBRACKET ::=    ']'
-SEMICOLON ::=    ';'
-QUESTION ::=    '?'
-COLON ::=    ':'
-COMMA ::=    ','
-DOT ::=    '.'
-EQUAL ::=    '='
+PostfixExpressionNotName ::= 'PostfixExpression'
+UnaryExpressionNotName ::= 'UnaryExpression'
+UnaryExpressionNotPlusMinusNotName ::= 'UnaryExpression'
+MultiplicativeExpressionNotName ::= 'MultiplicativeExpression'
+AdditiveExpressionNotName ::= 'AdditiveExpression'
+ShiftExpressionNotName ::= 'ShiftExpression'
+RelationalExpressionNotName ::= 'RelationalExpression'
+EqualityExpressionNotName ::= 'EqualityExpression'
+AndExpressionNotName ::= 'AndExpression'
+ExclusiveOrExpressionNotName ::= 'ExclusiveOrExpression'
+InclusiveOrExpressionNotName ::= 'InclusiveOrExpression'
+ConditionalAndExpressionNotName ::= 'ConditionalAndExpression'
+ConditionalOrExpressionNotName ::= 'ConditionalOrExpression'
+ConditionalExpressionNotName ::= 'ConditionalExpression'
+AssignmentExpressionNotName ::= 'AssignmentExpression'
+ExpressionNotName ::= 'Expression'
+
+Wildcard1 ::= 'Wildcard'
+Wildcard2 ::= 'Wildcard'
+Wildcard3 ::= 'Wildcard'
+TypeArgumentList1 ::= 'TypeArgumentList'
+TypeArgumentList2 ::= 'TypeArgumentList'
+TypeArgumentList3 ::= 'TypeArgumentList'
+TypeArgument1 ::= 'TypeArgument'
+TypeArgument2 ::= 'TypeArgument'
+TypeArgument3 ::= 'TypeArgument'
+ReferenceType1 ::= 'ReferenceType'
+ReferenceType2 ::= 'ReferenceType'
+ReferenceType3 ::= 'ReferenceType'
+TypeParameterList1 ::= 'TypeParameterList'
+TypeParameter1 ::= 'TypeParameter'
+TypeBound1 ::= 'TypeBound'
+AdditionalBoundList1 ::= 'AdditionalBoundList'
+AdditionalBound1 ::= 'AdditionalBound'
+ClassOrInterfaceType1 ::= 'ClassOrInterfaceType'
 
 $end

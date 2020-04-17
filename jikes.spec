@@ -1,39 +1,38 @@
 Summary: java source to bytecode compiler
-%define version 1.13
-Copyright: IBM Public License, http://oss.software.ibm.com/developerworks/opensource/license10.html
+License: IBM Public License, http://ibm.com/developerworks/oss/license10.html
 Group: Development/Languages
 Name: jikes
-Packager: David Shields (shields@watson.ibm.com)
 Prefix: /usr
-Provides: jikes
 Release: 1
-Source: jikes-%{version}.tar.gz
-URL: http://oss.software.ibm.com/developerworks/opensource/jikes
-Version: %{version}
+Source: %{name}-%{version}.tar.gz
+URL: http://ibm.com/developerworks/opensource/jikes
 Buildroot: /tmp/jikesrpm
+Packager: %{_gpg_name}
 
 %description
 The IBM Jikes compiler translates Java source files to bytecode. It
 also supports incremental compilation and automatic makefile generation,
 and is maintained by the Jikes Project:
-  http://oss.software.ibm.com/developerworks/opensource/jikes
+http://ibm.com/developerworks/opensource/jikes/
 
 %prep
 %setup -q
 
 %build
-./configure CXXFLAGS=-O3 --prefix=$RPM_BUILD_ROOT/usr
+./configure CXXFLAGS=-O3 --prefix=$RPM_BUILD_ROOT/%{_prefix} \
+  --mandir=$RPM_BUILD_ROOT/%{_mandir} --datadir=$RPM_BUILD_ROOT/%{_datadir}
 make
 
 %install
-rm -fr $RPM_BUILD_ROOT
 make install
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
-%defattr(-,-,root)
-/usr/bin/jikes
-/usr/doc/jikes-%{version}/license.htm
-/usr/man/man1/jikes.1
+%defattr(-,root,root)
+%doc AUTHORS COPYING ChangeLog NEWS README TODO
+%doc %{_datadir}/doc/%{name}-%{version}/license.htm
+%doc %{_mandir}/man1/%{name}.1*
+%{_bindir}/%{name}
+%{_includedir}/%{name}api.h

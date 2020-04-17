@@ -1,30 +1,23 @@
-// $Id: zip.h,v 1.9 2001/01/05 09:13:21 mdejong Exp $
+// $Id: zip.h,v 1.12 2001/12/13 00:40:15 ericb Exp $ -*- c++ -*-
 //
 // This software is subject to the terms of the IBM Jikes Compiler
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 1998, 1999, 2000, 2001 International Business
+// Machines Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
+
 #ifndef zip_INCLUDED
 #define zip_INCLUDED
 
 #include "platform.h"
 
-//FIXME: need to remove ?
-//#ifdef WIN32_FILE_SYSTEM
-//#include <windows.h>
-//#endif
-
-//#include <stddef.h>
-//#include <stdio.h>
-
 #include "tuple.h"
 #include "unzip.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
 class Control;
@@ -69,7 +62,7 @@ public:
     Zip(Control &, char *);
     ~Zip();
 
-    bool IsValid() { return magic == 0x06054b50; }
+    bool IsValid() { return magic == END_SIG; }
 
     DirectorySymbol *RootDirectory() { return root_directory; }
 
@@ -77,6 +70,18 @@ private:
     friend class ZipFile;
 
     Control &control;
+
+    enum
+    {
+        LOC_SIG = 0x04034b50,
+        LOC_SIZE = 30,
+        DATA_SIG = 0x08074b50,
+        DATA_SIZE = 16,
+        CEN_SIG = 0x02014b50,
+        CEN_SIZE = 46,
+        END_SIG = 0x06054b50,
+        END_SIZE = 22
+    };
 
     u4 magic;
 
@@ -103,9 +108,9 @@ private:
 #endif
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif /* zip_INCLUDED */
+#endif // zip_INCLUDED
 

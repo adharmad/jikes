@@ -1,11 +1,12 @@
-// $Id: unzip.h,v 1.7 2001/01/05 09:13:21 mdejong Exp $
+// $Id: unzip.h,v 1.9 2002/07/30 16:30:03 ericb Exp $
+
 #ifndef unzip_INCLUDED
 #define unzip_INCLUDED
 
 #include "platform.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
 //
@@ -41,10 +42,6 @@ namespace Jikes {	// Open namespace Jikes block
 //
 
 #define DFUNZIP /* needed for unzip compilation*/
-//FIXME: need to move to platform.h
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
 
 //
 // inflate.c -- put in the public domain by Mark Adler
@@ -189,7 +186,7 @@ namespace Jikes {	// Open namespace Jikes block
 #endif
 
 #ifndef MESSAGE   /* only used twice, for fixed strings--NOT general-purpose */
-#  define MESSAGE(str,len,flag)  fprintf(stderr,(char *)(str))
+#  define MESSAGE(str, len, flag)  fprintf(stderr, (char *) (str))
 #endif
 
 #ifndef FLUSH           /* default is to simply write the buffer to stdout */
@@ -197,7 +194,7 @@ namespace Jikes {	// Open namespace Jikes block
 #define FLUSH(n) memcpy(global_bufferp, slide_buffer, n); global_bufferp += n
 #endif
 /* Warning: the fwrite above might not work on 16-bit compilers, since
-   0x8000 might be interpreted as -32,768 by the library function. */
+   0x8000 might be interpreted as -32768 by the library function. */
 
 #ifndef Trace
 #  ifdef DEBUG
@@ -235,9 +232,15 @@ namespace Jikes {	// Open namespace Jikes block
 #endif
 
 #ifndef CHECK_EOF
-#  define NEEDBITS(n) {while(k<(n)){b|=((unsigned long)NEXTBYTE)<<k;k+=8;}}
+#  define NEEDBITS(n) {while (k<(n)) { \
+                         b |= ((unsigned long) NEXTBYTE) << k; \
+                         k+=8;}}
 #else
-#  define NEEDBITS(n) {while(k<(n)){int c=NEXTBYTE;if(c==EOF)return 1; b|=((unsigned long)c)<<k;k+=8;}}
+#  define NEEDBITS(n) {while (k<(n)) { \
+                         int c = NEXTBYTE; \
+                         if (c == EOF) return 1; \
+                         b |= ((unsigned long) c) << k; \
+                         k+=8;}}
 #endif                      /* Piet Plomp:  change "return 1" to "break" */
 
 #define DUMPBITS(n) {b>>=(n);k-=(n);}
@@ -337,9 +340,12 @@ public:
     static int lbits;           /* bits in base literal/length lookup table */
     static int dbits;           /* bits in base distance lookup table */
 
-    static int huft_build(unsigned *b,unsigned n, unsigned s, unsigned short *d, unsigned short *e, struct huft **t, int *m);
+    static int huft_build(unsigned *b, unsigned n, unsigned s,
+                          unsigned short *d, unsigned short *e,
+                          struct huft **t, int *m);
     static int huft_free(struct huft *);
-    static int inflate_codes(struct huft *tl,struct huft * td, int  bl,int bd);
+    static int inflate_codes(struct huft *tl, struct huft * td,
+                             int  bl, int bd);
     static int inflate_stored();
     static int inflate_fixed();
     static int inflate_dynamic();
@@ -375,9 +381,9 @@ public:
 #endif
 }; // end class unzip
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif /* unzip_INCLUDED */
+#endif // unzip_INCLUDED
 

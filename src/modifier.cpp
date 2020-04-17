@@ -1,1099 +1,462 @@
-// $Id: modifier.cpp,v 1.14 2001/01/10 16:49:45 mdejong Exp $
+// $Id: modifier.cpp,v 1.33 2004/03/25 13:32:28 ericb Exp $
 //
 // This software is subject to the terms of the IBM Jikes Compiler
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
 
 #include "platform.h"
 #include "semantic.h"
+#include "option.h"
+#include "javasym.h"
+#include "stream.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
-AccessFlags Semantic::ProcessClassModifiers(AstClassDeclaration *class_declaration)
+
+//
+// Process modifiers, returning the AccessFlags they represent.
+//
+// Diagnostics are emitted in the following cases:
+// . Invalid modifiers based on context.
+// . Duplicated mutually exclusive modifiers (public, protected, private).
+// . Duplicated general modifiers.
+// . Modifier combinations not legal (such as final abstract).
+// . Modifiers not in the recommended order (controlled by +Pmodifier-order).
+// . Explicit specification of implicit modifier (controlled by
+//   +Predundant-modifiers).
+//
+AccessFlags Semantic::ProcessModifiers(AstModifiers* modifiers,
+                                       const wchar_t* declaration_kind_name,
+                                       u2 valid_flags, u2 implicit_flags)
 {
+    if (! modifiers)
+        return AccessFlags(implicit_flags);
     AccessFlags access_flags;
-
-    for (int i = 0; i < class_declaration -> NumClassModifiers(); i++)
+    bool seen_keyword = false;
+    for (unsigned i = 0; i < modifiers -> NumModifiers(); i++)
     {
-        AstModifier *modifier = class_declaration -> ClassModifier(i);
-
-        switch(modifier -> kind)
+        Ast* mod = modifiers -> Modifier(i);
+        AstAnnotation* annotation = mod -> AnnotationCast();
+        AstModifierKeyword* keyword = mod -> ModifierKeywordCast();
+        if (annotation)
         {
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_ABSTRACT();
-
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_TOP_LEVEL_CLASS_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
+            if (seen_keyword)
+            {
+                ReportSemError(SemanticError::RECOMMENDED_ANNOTATION_ORDER,
+                               mod,
+                               lex_stream -> NameString(annotation -> name ->
+                                                        identifier_token));
+            }
+            // TODO: Add annotation support for 1.5.
+            ReportSemError(SemanticError::ANNOTATION_MODIFIER_UNSUPPORTED,
+                           mod);
+            continue;
         }
-    }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessLocalClassModifiers(AstClassDeclaration *class_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < class_declaration -> NumClassModifiers(); i++)
-    {
-        AstModifier *modifier = class_declaration -> ClassModifier(i);
-
-        switch(modifier -> kind)
+        assert(keyword);
+        seen_keyword = true;
+        u2 flag;
+        switch (lex_stream -> Kind(keyword -> modifier_token))
         {
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_ABSTRACT();
-
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_LOCAL_CLASS_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessNestedClassModifiers(AstClassDeclaration *class_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < class_declaration -> NumClassModifiers(); i++)
-    {
-        AstModifier *modifier = class_declaration -> ClassModifier(i);
-
-        switch(modifier -> kind)
-        {
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_ABSTRACT();
-
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::PRIVATE:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PRIVATE();
-                 break;
-            case Ast::PROTECTED:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PROTECTED();
-                 break;
-            case Ast::STATIC:
-                 if (access_flags.ACC_STATIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STATIC();
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_INNER_CLASS_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessStaticNestedClassModifiers(AstClassDeclaration *class_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < class_declaration -> NumClassModifiers(); i++)
-    {
-        AstModifier *modifier = class_declaration -> ClassModifier(i);
-
-        switch(modifier -> kind)
-        {
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_ABSTRACT();
-
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::FINAL_ABSTRACT_CLASS,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_PUBLIC,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_PUBLIC();
-                 }
-                 break;
-            case Ast::STATIC:
-                 if (access_flags.ACC_STATIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_STATIC,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_STATIC();
-                 }
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_INNER_CLASS_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    //
-    // A type that is a member of an interface is implicitly deemed to
-    // be static and public, whether it is explicitly marked so or not.
-    //
-    access_flags.SetACC_STATIC();
-    access_flags.SetACC_PUBLIC();
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessInterfaceModifiers(AstInterfaceDeclaration *interface_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < interface_declaration -> NumInterfaceModifiers(); i++)
-    {
-        AstModifier *modifier = interface_declaration -> InterfaceModifier(i);
-
-        switch(modifier -> kind)
-        {
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     ReportSemError(SemanticError::OBSOLESCENT_ABSTRACT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                     access_flags.SetACC_ABSTRACT();
-                 }
-                 break;
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_INTERFACE_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    access_flags.SetACC_INTERFACE();
-    access_flags.SetACC_ABSTRACT(); // every interface is implicitly abstract
-
-    return access_flags;
-}
-
-/**
- * Process modifieres for interface contained in another interface.
- */
-AccessFlags Semantic::ProcessStaticNestedInterfaceModifiers(AstInterfaceDeclaration *interface_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < interface_declaration -> NumInterfaceModifiers(); i++)
-    {
-        AstModifier *modifier = interface_declaration -> InterfaceModifier(i);
-
-        switch(modifier -> kind)
-        {
-        case Ast::ABSTRACT:
-            if (access_flags.ACC_ABSTRACT())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else
-            {
-                ReportSemError(SemanticError::OBSOLESCENT_ABSTRACT,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            break;
-        case Ast::PUBLIC:
-            if(access_flags.ACC_PUBLIC())
-            {
-                ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else 
-            {
-                if (control.option.pedantic)
-                    ReportSemError(SemanticError::REDUNDANT_PUBLIC,
-                                   modifier -> modifier_kind_token,
-                                   modifier -> modifier_kind_token);
-                access_flags.SetACC_PUBLIC();
-            }
-            break;
-        case Ast::STATIC: // TODO: Need to confirm that this is valid !!!
-            if(access_flags.ACC_STATIC())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else 
-            {
-                if(control.option.pedantic)
-                    ReportSemError(SemanticError::REDUNDANT_STATIC,
-                                   modifier -> modifier_kind_token,
-                                   modifier -> modifier_kind_token);
-                access_flags.SetACC_STATIC();
-            }
-            break;
-        case Ast::STRICTFP:
-            if (access_flags.ACC_STRICTFP())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_STRICTFP();
-            break;
+        case TK_abstract: flag = AccessFlags::ACCESS_ABSTRACT; break;
+        case TK_final: flag = AccessFlags::ACCESS_FINAL; break;
+        case TK_native: flag = AccessFlags::ACCESS_NATIVE; break;
+        case TK_public: flag = AccessFlags::ACCESS_PUBLIC; break;
+        case TK_protected: flag = AccessFlags::ACCESS_PROTECTED; break;
+        case TK_private: flag = AccessFlags::ACCESS_PRIVATE; break;
+        case TK_static: flag = AccessFlags::ACCESS_STATIC; break;
+        case TK_strictfp: flag = AccessFlags::ACCESS_STRICTFP; break;
+        case TK_synchronized: flag = AccessFlags::ACCESS_SYNCHRONIZED; break;
+        case TK_transient: flag = AccessFlags::ACCESS_TRANSIENT; break;
+        case TK_volatile: flag = AccessFlags::ACCESS_VOLATILE; break;
         default:
-            ReportSemError(SemanticError::INVALID_INTERFACE_MODIFIER,
-                           modifier -> modifier_kind_token,
-                           modifier -> modifier_kind_token,
-                           lex_stream -> NameString(modifier -> modifier_kind_token));
-            break;
+            assert(false && "token was not modifier");
         }
-    }
-
-    access_flags.SetACC_INTERFACE();
-    access_flags.SetACC_ABSTRACT(); // every interface is implicitly abstract
-    access_flags.SetACC_STATIC();   // every inner interface is implicitly static
-    access_flags.SetACC_PUBLIC();   // interface contained interfaces are implicitly public
-
-    return access_flags;
-}
-
-AccessFlags Semantic::ProcessNestedInterfaceModifiers(AstInterfaceDeclaration *interface_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < interface_declaration -> NumInterfaceModifiers(); i++)
-    {
-        AstModifier *modifier = interface_declaration -> InterfaceModifier(i);
-
-        switch(modifier -> kind)
+        if ((flag & valid_flags) == 0)
         {
-        case Ast::ABSTRACT:
-            if (access_flags.ACC_ABSTRACT())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else
-            {
-                ReportSemError(SemanticError::OBSOLESCENT_ABSTRACT,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            break;
-        case Ast::PUBLIC:
-            if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-            {
-                ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_PUBLIC();
-            break;
-        case Ast::PRIVATE:
-            if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-            {
-                ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_PRIVATE();
-            break;
-        case Ast::PROTECTED:
-            if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-            {
-                ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_PROTECTED();
-            break;
-        case Ast::STATIC: // TODO: Need to confirm that this is valid !!!
-            if (access_flags.ACC_STATIC())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else if (control.option.pedantic)
-            {
-                ReportSemError(SemanticError::REDUNDANT_STATIC,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-                access_flags.SetACC_STATIC();
-            }
-
-            break;
-        case Ast::STRICTFP:
-            if (access_flags.ACC_STRICTFP())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_STRICTFP();
-            break;
-        default:
-            ReportSemError(SemanticError::INVALID_INTERFACE_MODIFIER,
-                           modifier -> modifier_kind_token,
-                           modifier -> modifier_kind_token,
-                           lex_stream -> NameString(modifier -> modifier_kind_token));
-            break;
+            ReportSemError(SemanticError::INVALID_MODIFIER, mod,
+                           lex_stream -> NameString(keyword -> modifier_token),
+                           declaration_kind_name);
         }
-    }
-
-    access_flags.SetACC_INTERFACE();
-    access_flags.SetACC_ABSTRACT(); // every interface is implicitly abstract
-    access_flags.SetACC_STATIC();   // every inner interface is implicitly static
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessFieldModifiers(AstFieldDeclaration *field_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < field_declaration -> NumVariableModifiers(); i++)
-    {
-        AstModifier *modifier = field_declaration -> VariableModifier(i);
-
-        switch(modifier -> kind)
+        else if ((flag & AccessFlags::ACCESS_ACCESS) &&
+                 (access_flags.Flags() & AccessFlags::ACCESS_ACCESS))
         {
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::PROTECTED:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PROTECTED();
-                 break;
-            case Ast::PRIVATE:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PRIVATE();
-                 break;
-            case Ast::STATIC:
-                 if (access_flags.ACC_STATIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STATIC();
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_VOLATILE())
-                 {
-                     ReportSemError(SemanticError::FINAL_VOLATILE,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::TRANSIENT:
-                 if (access_flags.ACC_TRANSIENT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_TRANSIENT();
-                 break;
-            case Ast::VOLATILE:
-                 if (access_flags.ACC_VOLATILE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_VOLATILE();
-
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::VOLATILE_FINAL,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_FIELD_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
+            ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER, mod);
         }
-    }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessLocalModifiers(AstLocalVariableDeclarationStatement *local_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < local_declaration -> NumLocalModifiers(); i++)
-    {
-        AstModifier *modifier = local_declaration -> LocalModifier(i);
-
-        if (modifier -> kind == Ast::FINAL)
+        else if (access_flags.IsSet(flag))
         {
-            if (access_flags.ACC_FINAL())
-            {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
-            }
-            else access_flags.SetACC_FINAL();
+            ReportSemError(SemanticError::DUPLICATE_MODIFIER, mod,
+                           lex_stream -> NameString(keyword ->
+                                                    modifier_token));
         }
         else
         {
-            ReportSemError(SemanticError::INVALID_LOCAL_MODIFIER,
-                           modifier -> modifier_kind_token,
-                           modifier -> modifier_kind_token,
-                           lex_stream -> NameString(modifier -> modifier_kind_token));
+            // We have a valid flag if it is alone.
+            if ((flag & implicit_flags) != 0)
+            {
+                ReportSemError(SemanticError::REDUNDANT_MODIFIER, mod,
+                               lex_stream -> NameString(keyword ->
+                                                        modifier_token),
+                               declaration_kind_name);
+            }
+            if (! access_flags.RecommendedOrder(flag))
+            {
+                ReportSemError(SemanticError::RECOMMENDED_MODIFIER_ORDER, mod,
+                               lex_stream -> NameString(keyword ->
+                                                        modifier_token));
+            }
+            access_flags.SetFlags(flag);
+            if (access_flags.ACC_FINAL())
+            {
+                if (access_flags.ACC_VOLATILE())
+                {
+                    // We know it's a field because of volatile.
+                    ReportSemError(SemanticError::VOLATILE_FINAL_FIELD, mod,
+                                   lex_stream -> NameString(keyword ->
+                                                            modifier_token));
+                    access_flags.ResetFlags(flag);
+                }
+                else if (access_flags.ACC_ABSTRACT())
+                {
+                    ReportSemError(SemanticError::FINAL_ABSTRACT_ENTITY, mod,
+                                   declaration_kind_name);
+                    access_flags.ResetFlags(flag);
+                }
+            }
+            else if (access_flags.ACC_ABSTRACT() &&
+                     (valid_flags & AccessFlags::ACCESS_NATIVE))
+            {
+                //
+                // Classes can be private static abstract strictfp, but methods
+                // cannot. Hence, we checked that we are dealing with a method
+                // by looking for NATIVE in the legal flags.
+                //
+                if (access_flags.ACC_SYNCHRONIZED() ||
+                    access_flags.ACC_NATIVE() || access_flags.ACC_PRIVATE() ||
+                    access_flags.ACC_STATIC() || access_flags.ACC_STRICTFP())
+                {
+                    ReportSemError(SemanticError::BAD_ABSTRACT_METHOD_MODIFIER,
+                                   mod);
+                    access_flags.ResetFlags(flag);
+                }
+            }
+            else if (access_flags.ACC_STRICTFP() && access_flags.ACC_NATIVE())
+            {
+                ReportSemError(SemanticError::STRICTFP_NATIVE_METHOD, mod);
+                access_flags.ResetFlags(flag);
+            }
         }
     }
-
+    access_flags.SetFlags(implicit_flags);
     return access_flags;
 }
 
-
-AccessFlags Semantic::ProcessFormalModifiers(AstFormalParameter *parameter_declaration)
+//
+// Process modifiers of packages (annotations only, added in 1.5).
+//
+AccessFlags Semantic::ProcessPackageModifiers(AstPackageDeclaration* package)
 {
-    AccessFlags access_flags;
+    return ProcessModifiers(package -> modifiers_opt, L"a package", 0);
+}
 
-    for (int i = 0; i < parameter_declaration -> NumParameterModifiers(); i++)
+
+//
+// Process modifiers of top-level types.
+//
+AccessFlags Semantic::ProcessTopLevelTypeModifiers(AstDeclaredType* decl)
+{
+    AstClassDeclaration* class_decl = decl -> ClassDeclarationCast();
+    AstEnumDeclaration* enum_decl = decl -> EnumDeclarationCast();
+    AstInterfaceDeclaration* interface_decl =
+        decl -> InterfaceDeclarationCast();
+    AstAnnotationDeclaration* annotation_decl =
+        decl -> AnnotationDeclarationCast();
+    u2 valid_flags;
+    u2 implicit_flags = 0;
+    const wchar_t* context;
+    if (class_decl)
     {
-        AstModifier *modifier = parameter_declaration -> ParameterModifier(i);
-
-        if (modifier -> kind == Ast::FINAL)
+        context = L"a top-level class";
+        valid_flags = AccessFlags::ACCESS_ABSTRACT |
+            AccessFlags::ACCESS_FINAL | AccessFlags::ACCESS_PUBLIC |
+            AccessFlags::ACCESS_STRICTFP;
+    }
+    else if (enum_decl)
+    {
+        valid_flags = AccessFlags::ACCESS_ABSTRACT |
+            AccessFlags::ACCESS_FINAL | AccessFlags::ACCESS_PUBLIC |
+            AccessFlags::ACCESS_STRICTFP;
+        implicit_flags = AccessFlags::ACCESS_FINAL;
+        for (unsigned i = 0; i < enum_decl -> NumEnumConstants(); i++)
         {
-            if (access_flags.ACC_FINAL())
+            if (enum_decl -> EnumConstant(i) -> class_body_opt)
             {
-                ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                               modifier -> modifier_kind_token,
-                               modifier -> modifier_kind_token);
+                valid_flags &= ~ AccessFlags::ACCESS_FINAL;
+                implicit_flags = 0;
+                break;
             }
-            else access_flags.SetACC_FINAL();
+        }
+        context = implicit_flags
+            ? L"a top-level enumeration (all enum constants without a body)"
+            : L"a top-level enumeration (some enum constants with a body)";
+    }
+    else
+    {
+        valid_flags = AccessFlags::ACCESS_ABSTRACT |
+            AccessFlags::ACCESS_PUBLIC | AccessFlags::ACCESS_STRICTFP;
+        implicit_flags = AccessFlags::ACCESS_INTERFACE |
+            AccessFlags::ACCESS_ABSTRACT;
+        if (interface_decl)
+            context = L"a top-level interface";
+        else
+        {
+            assert(annotation_decl);
+            context = L"a top-level annotation type";
+            implicit_flags |= AccessFlags::ACCESS_ANNOTATION;
+        }
+    }
+    return ProcessModifiers(decl -> modifiers_opt, context, valid_flags,
+                            implicit_flags);
+}
+
+
+//
+// Process modifiers of local classes declared as a statement in a method.
+//
+AccessFlags Semantic::ProcessLocalClassModifiers(AstDeclaredType* decl)
+{
+    AstClassDeclaration* class_decl = decl -> ClassDeclarationCast();
+    AstEnumDeclaration* enum_decl = decl -> EnumDeclarationCast();
+    u2 valid_flags = AccessFlags::ACCESS_ABSTRACT |
+        AccessFlags::ACCESS_FINAL | AccessFlags::ACCESS_STRICTFP;
+    u2 implicit_flags = 0;
+    const wchar_t* context;
+    if (class_decl)
+        context = L"a local inner class";
+    else
+    {
+        assert(enum_decl);
+        implicit_flags = AccessFlags::ACCESS_FINAL;
+        for (unsigned i = 0; i < enum_decl -> NumEnumConstants(); i++)
+        {
+            if (enum_decl -> EnumConstant(i) -> class_body_opt)
+            {
+                valid_flags &= ~ AccessFlags::ACCESS_FINAL;
+                implicit_flags = 0;
+                break;
+            }
+        }
+        context = implicit_flags
+            ? L"a local enumeration (all enum constants without a body)"
+            : L"a local enumeration (some enum constants with a body)";
+    }
+    return ProcessModifiers(decl -> modifiers_opt, context, valid_flags,
+                            implicit_flags);
+}
+
+
+//
+// Process modifiers of nested and inner types.
+//
+AccessFlags Semantic::ProcessNestedTypeModifiers(TypeSymbol* containing_type,
+                                                 AstDeclaredType* decl)
+{
+    AstClassDeclaration* class_decl = decl -> ClassDeclarationCast();
+    AstEnumDeclaration* enum_decl = decl -> EnumDeclarationCast();
+    AstInterfaceDeclaration* interface_decl =
+        decl -> InterfaceDeclarationCast();
+    AstAnnotationDeclaration* annotation_decl =
+        decl -> AnnotationDeclarationCast();
+    u2 valid_flags;
+    u2 implicit_flags = 0;
+    const wchar_t* context;
+    if (class_decl || enum_decl)
+    {
+        if (containing_type -> ACC_INTERFACE())
+        {
+            valid_flags = AccessFlags::ACCESS_ABSTRACT |
+                AccessFlags::ACCESS_FINAL | AccessFlags::ACCESS_PUBLIC |
+                AccessFlags::ACCESS_STATIC | AccessFlags::ACCESS_STRICTFP;
+            implicit_flags = AccessFlags::ACCESS_STATIC |
+                AccessFlags::ACCESS_PUBLIC;
         }
         else
         {
-            ReportSemError(SemanticError::INVALID_LOCAL_MODIFIER,
-                           modifier -> modifier_kind_token,
-                           modifier -> modifier_kind_token,
-                           lex_stream -> NameString(modifier -> modifier_kind_token));
+            valid_flags = AccessFlags::ACCESS_ABSTRACT |
+                AccessFlags::ACCESS_FINAL | AccessFlags::ACCESS_ACCESS |
+                AccessFlags::ACCESS_STATIC | AccessFlags::ACCESS_STRICTFP;
         }
-    }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessMethodModifiers(AstMethodDeclaration *method_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < method_declaration -> NumMethodModifiers(); i++)
-    {
-        AstModifier *modifier = method_declaration -> MethodModifier(i);
-
-        switch(modifier -> kind)
+        if (class_decl)
+            context = L"a member class";
+        else
         {
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::PROTECTED:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PROTECTED();
-                 break;
-            case Ast::PRIVATE:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PRIVATE();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::ABSTRACT_METHOD_MODIFIER_CONFLICT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token,
-                                    lex_stream -> NameString(modifier -> modifier_kind_token));
-                 }
-                 break;
-            case Ast::STATIC:
-                 if (access_flags.ACC_STATIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STATIC();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::ABSTRACT_METHOD_MODIFIER_CONFLICT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token,
-                                    lex_stream -> NameString(modifier -> modifier_kind_token));
-                 }
-                 break;
-            case Ast::STRICTFP:
-                 if (access_flags.ACC_STRICTFP())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_STRICTFP();
-                 break;
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_ABSTRACT();
-
-                 if (access_flags.ACC_PRIVATE() || access_flags.ACC_STATIC() ||
-                     access_flags.ACC_FINAL()   || access_flags.ACC_NATIVE() || access_flags.ACC_SYNCHRONIZED())
-                 {
-                     ReportSemError(SemanticError::BAD_ABSTRACT_METHOD_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_FINAL();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::ABSTRACT_METHOD_MODIFIER_CONFLICT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token,
-                                    lex_stream -> NameString(modifier -> modifier_kind_token));
-                 }
-                 break;
-            case Ast::NATIVE:
-                 if (access_flags.ACC_NATIVE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_NATIVE();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::ABSTRACT_METHOD_MODIFIER_CONFLICT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token,
-                                    lex_stream -> NameString(modifier -> modifier_kind_token));
-                 }
-                 break;
-            case Ast::SYNCHRONIZED:
-                 if (access_flags.ACC_SYNCHRONIZED())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_SYNCHRONIZED();
-
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::ABSTRACT_METHOD_MODIFIER_CONFLICT,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token,
-                                    lex_stream -> NameString(modifier -> modifier_kind_token));
-                 }
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_METHOD_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
+            implicit_flags |= AccessFlags::ACCESS_FINAL |
+                AccessFlags::ACCESS_STATIC;
+            for (unsigned i = 0; i < enum_decl -> NumEnumConstants(); i++)
+            {
+                if (enum_decl -> EnumConstant(i) -> class_body_opt)
+                {
+                    valid_flags &= ~ AccessFlags::ACCESS_FINAL;
+                    implicit_flags &= ~ AccessFlags::ACCESS_FINAL;
+                    break;
+                }
+            }
+            context = (implicit_flags & AccessFlags::ACCESS_FINAL)
+                ? L"a member enumeration (all enum constants without a body)"
+                : L"a member enumeration (some enum constants with a body)";
         }
     }
-
-    return access_flags;
-}
-
-
-AccessFlags Semantic::ProcessInterfaceMethodModifiers(AstMethodDeclaration *method_declaration)
-{
-    AccessFlags access_flags;
-
-    for (int i = 0; i < method_declaration -> NumMethodModifiers(); i++)
+    else
     {
-        AstModifier *modifier = method_declaration -> MethodModifier(i);
-
-        switch(modifier -> kind)
+        if (containing_type -> ACC_INTERFACE())
         {
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_PUBLIC,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_PUBLIC();
-                 }
-                 break;
-            case Ast::ABSTRACT:
-                 if (access_flags.ACC_ABSTRACT())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_ABSTRACT,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_ABSTRACT();
-                 }
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_SIGNATURE_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
+            valid_flags = AccessFlags::ACCESS_ABSTRACT |
+                AccessFlags::ACCESS_PUBLIC | AccessFlags::ACCESS_STATIC |
+                AccessFlags::ACCESS_STRICTFP;
+            implicit_flags = AccessFlags::ACCESS_INTERFACE |
+                AccessFlags::ACCESS_ABSTRACT | AccessFlags::ACCESS_STATIC |
+                AccessFlags::ACCESS_PUBLIC;
+        }
+        else
+        {
+            valid_flags = AccessFlags::ACCESS_ABSTRACT |
+                AccessFlags::ACCESS_ACCESS | AccessFlags::ACCESS_STATIC |
+                AccessFlags::ACCESS_STRICTFP;
+            implicit_flags = AccessFlags::ACCESS_INTERFACE |
+                AccessFlags::ACCESS_ABSTRACT | AccessFlags::ACCESS_STATIC;
+        }
+        if (interface_decl)
+            context = L"a member interface";
+        else
+        {
+            assert(annotation_decl);
+            context = L"a member annotation type";
+            implicit_flags |= AccessFlags::ACCESS_ANNOTATION;
         }
     }
-
-    //
-    // Every method declaration in the body of an interface is implicitly "public" and "abstract"
-    //
-    access_flags.SetACC_ABSTRACT();
-    access_flags.SetACC_PUBLIC();
-
-    return access_flags;
+    return ProcessModifiers(decl -> modifiers_opt, context, valid_flags,
+                            implicit_flags);
 }
 
 
-AccessFlags Semantic::ProcessConstructorModifiers(AstConstructorDeclaration *constructor_declaration)
+//
+// Process modifiers of fields declared in classes.
+//
+AccessFlags Semantic::ProcessFieldModifiers(AstFieldDeclaration* field_declaration)
 {
-    AccessFlags access_flags;
-
-    for (int i = 0; i < constructor_declaration -> NumConstructorModifiers(); i++)
-    {
-        AstModifier *modifier = constructor_declaration -> ConstructorModifier(i);
-
-        switch(modifier -> kind)
-        {
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PUBLIC();
-                 break;
-            case Ast::PROTECTED:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PROTECTED();
-                 break;
-            case Ast::PRIVATE:
-                 if (access_flags.ACC_PUBLIC() || access_flags.ACC_PROTECTED() || access_flags.ACC_PRIVATE())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_ACCESS_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else access_flags.SetACC_PRIVATE();
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_CONSTRUCTOR_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    return access_flags;
+    return ProcessModifiers(field_declaration -> modifiers_opt,
+                            L"a class's member field",
+                            (AccessFlags::ACCESS_ACCESS |
+                             AccessFlags::ACCESS_STATIC |
+                             AccessFlags::ACCESS_FINAL |
+                             AccessFlags::ACCESS_TRANSIENT |
+                             AccessFlags::ACCESS_VOLATILE));
 }
 
 
-AccessFlags Semantic::ProcessConstantModifiers(AstFieldDeclaration *field_declaration)
+//
+// Process modifiers of local variables.
+//
+AccessFlags Semantic::ProcessLocalModifiers(AstLocalVariableStatement* decl)
 {
-    AccessFlags access_flags;
-
-    for (int i = 0; i < field_declaration -> NumVariableModifiers(); i++)
-    {
-        AstModifier *modifier = field_declaration -> VariableModifier(i);
-
-        switch(modifier -> kind)
-        {
-            case Ast::PUBLIC:
-                 if (access_flags.ACC_PUBLIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_PUBLIC,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_PUBLIC();
-                 }
-                 break;
-            case Ast::STATIC:
-                 if (access_flags.ACC_STATIC())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_STATIC,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_STATIC();
-                 }
-                 break;
-            case Ast::FINAL:
-                 if (access_flags.ACC_FINAL())
-                 {
-                     ReportSemError(SemanticError::DUPLICATE_MODIFIER,
-                                    modifier -> modifier_kind_token,
-                                    modifier -> modifier_kind_token);
-                 }
-                 else
-                 {
-                     if (control.option.pedantic)
-                         ReportSemError(SemanticError::REDUNDANT_FINAL,
-                                        modifier -> modifier_kind_token,
-                                        modifier -> modifier_kind_token);
-                     access_flags.SetACC_FINAL();
-                 }
-                 break;
-            default:
-                 ReportSemError(SemanticError::INVALID_CONSTANT_MODIFIER,
-                                modifier -> modifier_kind_token,
-                                modifier -> modifier_kind_token,
-                                lex_stream -> NameString(modifier -> modifier_kind_token));
-                 break;
-        }
-    }
-
-    //
-    // Every constant (field) declaration in the body of an interface is implicitly "public", "static" and "final"
-    //
-    access_flags.SetACC_PUBLIC();
-    access_flags.SetACC_STATIC();
-    access_flags.SetACC_FINAL();
-
-    return access_flags;
+    return ProcessModifiers(decl -> modifiers_opt, L"a local variable",
+                            AccessFlags::ACCESS_FINAL);
 }
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+
+//
+// Process modifiers of parameters.
+//
+AccessFlags Semantic::ProcessFormalModifiers(AstFormalParameter* decl)
+{
+    return ProcessModifiers(decl -> modifiers_opt, L"a formal parameter",
+                            AccessFlags::ACCESS_FINAL);
+}
+
+
+//
+// Process modifiers of methods declared in classes.
+//
+AccessFlags Semantic::ProcessMethodModifiers(AstMethodDeclaration* decl)
+{
+    return ProcessModifiers(decl -> modifiers_opt, L"a class's member method",
+                            (AccessFlags::ACCESS_ACCESS |
+                             AccessFlags::ACCESS_STATIC |
+                             AccessFlags::ACCESS_STRICTFP |
+                             AccessFlags::ACCESS_ABSTRACT |
+                             AccessFlags::ACCESS_FINAL |
+                             AccessFlags::ACCESS_NATIVE |
+                             AccessFlags::ACCESS_SYNCHRONIZED));
+}
+
+
+//
+// Process modifiers of methods declared in interfaces.
+//
+AccessFlags Semantic::ProcessInterfaceMethodModifiers(AstMethodDeclaration* method_declaration)
+{
+    return ProcessModifiers(method_declaration -> modifiers_opt,
+                            L"an interface's member method",
+                            (AccessFlags::ACCESS_PUBLIC |
+                             AccessFlags::ACCESS_ABSTRACT),
+                            (AccessFlags::ACCESS_PUBLIC |
+                             AccessFlags::ACCESS_ABSTRACT));
+}
+
+
+//
+// Process modifiers of constructors.
+//
+AccessFlags Semantic::ProcessConstructorModifiers(AstConstructorDeclaration* constructor_declaration)
+{
+    return ProcessModifiers(constructor_declaration -> modifiers_opt,
+                            L"a constructor", AccessFlags::ACCESS_ACCESS);
+}
+
+
+//
+// Process modifiers of fields declared in interfaces.
+//
+AccessFlags Semantic::ProcessInterfaceFieldModifiers(AstFieldDeclaration* decl)
+{
+    return ProcessModifiers(decl -> modifiers_opt,
+                            L"an interface's member field",
+                            (AccessFlags::ACCESS_PUBLIC |
+                             AccessFlags::ACCESS_STATIC |
+                             AccessFlags::ACCESS_FINAL),
+                            (AccessFlags::ACCESS_PUBLIC |
+                             AccessFlags::ACCESS_STATIC |
+                             AccessFlags::ACCESS_FINAL));
+}
+
+
+//
+// Process static and instance initializer modifiers.
+//
+AccessFlags Semantic::ProcessInitializerModifiers(AstInitializerDeclaration* initializer)
+{
+    return ProcessModifiers(initializer -> modifiers_opt,
+                            L"an initializer block",
+                            AccessFlags::ACCESS_STATIC);
+}
+
+
+//
+// Process static and instance initializer modifiers.
+//
+AccessFlags Semantic::ProcessEnumConstantModifiers(AstEnumConstant* decl)
+{
+    return ProcessModifiers(decl -> modifiers_opt, L"an enum constant", 0,
+                            (AccessFlags::ACCESS_PUBLIC |
+                             AccessFlags::ACCESS_STATIC |
+                             AccessFlags::ACCESS_FINAL |
+                             AccessFlags::ACCESS_ENUM));
+}
+
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
-

@@ -1,12 +1,11 @@
-// $Id: bytecode.h,v 1.22 2001/01/05 09:13:19 mdejong Exp $
+// $Id: bytecode.h,v 1.71 2004/03/05 13:10:53 ericb Exp $ -*- c++ -*-
 //
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
-
 //
+
 #ifndef bytecode_INCLUDED
 #define bytecode_INCLUDED
 
@@ -14,13 +13,12 @@
 #include "tuple.h"
 #include "ast.h"
 #include "class.h"
-#include "option.h"
-#include "long.h"
 #include "op.h"
 #include "segment.h"
+#include "control.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
 class TypeSymbol;
@@ -34,20 +32,30 @@ public:
     class LabelUse
     {
     public:
-        int use_length, // length of use (2 or 4 bytes)
-            op_offset,  // length of use from opcode starting instruction
-            use_offset; // offset in code stream of use
+        int use_length; // length of use (2 or 4 bytes)
+        int op_offset; // length of use from opcode starting instruction
+        int use_offset; // offset in code stream of use
 
         LabelUse() : use_length(0), op_offset(0), use_offset(0) {}
 
-        LabelUse(int _length, int _op_offset, int _use) : use_length(_length), op_offset(_op_offset), use_offset(_use) {}
+        LabelUse(int _length, int _op_offset, int _use)
+            : use_length(_length),
+              op_offset(_op_offset),
+              use_offset(_use)
+        {}
     };
 
-    bool defined;   // boolean, set when value is known
-    int definition; // offset of definition point of label
+    bool defined; // boolean, set when value is known
+    u2 definition; // offset of definition point of label
     Tuple<LabelUse> uses;
 
     Label() : defined(false), definition(0) {}
+
+    //
+    // All used labels should have been completed and reset, otherwise a goto
+    // will cause an infinite loop because it was emitted with an offset of 0.
+    //
+    ~Label() { assert(! uses.Length()); }
 
     void Reset()
     {
@@ -65,21 +73,22 @@ class MethodStack
 {
 public:
 
-    void Push(AstBlock *block)
+    void Push(AstBlock* block)
     {
         assert(block -> nesting_level < stack_size &&
-              (top_index == 0 || ((block -> nesting_level - 1) == nesting_level[top_index - 1])));
+               (top_index == 0 ||
+                (block -> nesting_level > nesting_level[top_index - 1])));
 
         nesting_level[top_index] = block -> nesting_level;
         break_labels[block -> nesting_level].uses.Reset();
         continue_labels[block -> nesting_level].uses.Reset();
         finally_labels[block -> nesting_level].uses.Reset();
-        monitor_labels[block -> nesting_level].uses.Reset();
+        handler_range_start[block -> nesting_level].Reset();
+        handler_range_end[block -> nesting_level].Reset();
         blocks[block -> nesting_level] = block;
-
-#ifdef JIKES_DEBUG
-        (void) memset(local_variables_start_pc[block -> nesting_level], 0xFF, size * sizeof(u2));
-#endif
+        if (size)
+            memset(local_variables_start_pc[block -> nesting_level],
+                   0xFF, size * sizeof(u2));
         top_index++;
     }
 
@@ -89,190 +98,290 @@ public:
         {
             top_index--;
 #ifdef JIKES_DEBUG
-            int level = nesting_level[top_index];
+            unsigned level = nesting_level[top_index];
 
             nesting_level[top_index] = 0;
             break_labels[level].Reset();
             continue_labels[level].Reset();
             finally_labels[level].Reset();
-            monitor_labels[level].Reset();
+            handler_range_start[level].Reset();
+            handler_range_end[level].Reset();
             blocks[level] = NULL;
-            (void) memset(local_variables_start_pc[level], 0xFF, size * sizeof(u2));
-#endif
+            if (size)
+                memset(local_variables_start_pc[level], 0xFF,
+                       size * sizeof(u2));
+#endif // ! JIKES_DEBUG
         }
         else assert(false);
     }
 
-    int Size() { return top_index; }
+    unsigned Size() { return top_index; }
 
 #ifdef JIKES_DEBUG
-    void AssertIndex(int k)
+    void AssertIndex(unsigned k)
     {
-        for (int i = 0; i < Size(); i++)
+        for (unsigned i = 0; i < top_index; i++)
             if (nesting_level[i] == k)
                 return;
-        assert(0);
+        assert(false && "missing method stack level");
     }
 #else
-#define AssertIndex(x)
-#endif
+# define AssertIndex(x) /* nop */
+#endif // ! JIKES_DEBUG
 
-    int TopNestingLevel()   { assert(top_index > 0); return nesting_level[top_index - 1]; }
-    int NestingLevel(int i) { AssertIndex(i); return nesting_level[i]; }
-
-    Label &TopBreakLabel()    { return break_labels[TopNestingLevel()]; }
-    Label &BreakLabel(int i)  { AssertIndex(i); return break_labels[i]; }
-
-    Label &TopContinueLabel()   { return continue_labels[TopNestingLevel()]; }
-    Label &ContinueLabel(int i) { AssertIndex(i); return continue_labels[i]; }
-
-    Label &TopFinallyLabel()    { return finally_labels[TopNestingLevel()]; }
-    Label &FinallyLabel(int i)  { AssertIndex(i); return finally_labels[i]; }
-
-    Label &TopMonitorLabel()   { return monitor_labels[TopNestingLevel()]; }
-    Label &MonitorLabel(int i) { AssertIndex(i); return monitor_labels[i]; }
-
-    AstBlock *TopBlock()   { return blocks[TopNestingLevel()]; }
-    AstBlock *Block(int i) { AssertIndex(i); return blocks[i]; }
-
-    //
-    //
-    //
-    u2 *TopLocalVariablesStartPc() { return (u2 *) local_variables_start_pc[TopNestingLevel()]; }
-    u2 &StartPc(VariableSymbol *variable)
+    unsigned TopNestingLevel()
     {
-        assert(variable -> LocalVariableIndex() >= 0 && variable -> LocalVariableIndex() < size);
+        assert(top_index > 0);
+        return nesting_level[top_index - 1];
+    }
+    unsigned NestingLevel(unsigned i)
+    {
+        assert(i < top_index);
+        return nesting_level[i];
+    }
+
+    Label& TopBreakLabel() { return break_labels[TopNestingLevel()]; }
+    Label& BreakLabel(unsigned i) { AssertIndex(i); return break_labels[i]; }
+
+    Label& TopContinueLabel() { return continue_labels[TopNestingLevel()]; }
+    Label& ContinueLabel(unsigned i)
+    {
+        AssertIndex(i);
+        return continue_labels[i];
+    }
+
+    Label& TopFinallyLabel() { return finally_labels[TopNestingLevel()]; }
+    Label& FinallyLabel(unsigned i)
+    {
+        AssertIndex(i);
+        return finally_labels[i];
+    }
+
+    Tuple<u2>& TopHandlerRangeStart()
+    {
+        return handler_range_start[TopNestingLevel()];
+    }
+    Tuple<u2>& HandlerRangeStart(unsigned i)
+    {
+        AssertIndex(i);
+        return handler_range_start[i];
+    }
+
+    Tuple<u2>& TopHandlerRangeEnd()
+    {
+        return handler_range_end[TopNestingLevel()];
+    }
+    Tuple<u2>& HandlerRangeEnd(unsigned i)
+    {
+        AssertIndex(i);
+        return handler_range_end[i];
+    }
+
+    AstBlock* TopBlock() { return blocks[TopNestingLevel()]; }
+    AstBlock* Block(unsigned i) { AssertIndex(i); return blocks[i]; }
+
+    u2* TopLocalVariablesStartPc()
+    {
+        return (u2*) local_variables_start_pc[TopNestingLevel()];
+    }
+    u2& StartPc(VariableSymbol* variable)
+    {
+        assert(variable -> LocalVariableIndex() >= 0 &&
+               variable -> LocalVariableIndex() < (int) size);
         return TopLocalVariablesStartPc()[variable -> LocalVariableIndex()];
     }
 
-    MethodStack(int stack_size_, int size_) : stack_size(stack_size_),
-                                              size(size_),
-                                              top_index(0)
+    MethodStack(unsigned stack_size_, unsigned size_)
+        : stack_size(stack_size_),
+          size(size_),
+          top_index(0)
     {
-        nesting_level = new int[stack_size];
+        nesting_level = new unsigned[stack_size];
         break_labels = new Label[stack_size];
         continue_labels = new Label[stack_size];
         finally_labels = new Label[stack_size];
-        monitor_labels = new Label[stack_size];
-        blocks = new AstBlock *[stack_size];
+        handler_range_start = new Tuple<u2>[stack_size];
+        handler_range_end = new Tuple<u2>[stack_size];
+        blocks = new AstBlock*[stack_size];
 
         local_variables_start_pc = new u2*[stack_size];
-        for (int i = 0; i < stack_size; i++)
+        for (unsigned i = 0; i < stack_size; i++)
             local_variables_start_pc[i] = new u2[size];
     }
     ~MethodStack()
     {
         delete [] nesting_level;
-
         delete [] break_labels;
         delete [] continue_labels;
         delete [] finally_labels;
-        delete [] monitor_labels;
-
+        delete [] handler_range_start;
+        delete [] handler_range_end;
         delete [] blocks;
 
-        for (int i = 0; i < stack_size; i++)
+        for (unsigned i = 0; i < stack_size; i++)
             delete [] local_variables_start_pc[i];
         delete [] local_variables_start_pc;
     }
 
 private:
-    int *nesting_level;
+    unsigned* nesting_level;
 
-    Label *break_labels,
-          *continue_labels,
-          *finally_labels,
-          *monitor_labels;
+    Label* break_labels;
+    Label* continue_labels;
+    Label* finally_labels;
+    Tuple<u2>* handler_range_start;
+    Tuple<u2>* handler_range_end;
 
-    AstBlock **blocks; // block symbols for current block
+    AstBlock** blocks; // block symbols for current block
 
-    u2 **local_variables_start_pc;
-    int stack_size,
-        size,
-        top_index;
+    u2** local_variables_start_pc;
+    unsigned stack_size;
+    unsigned size;
+    unsigned top_index;
 };
 
 
 class ByteCode : public ClassFile, public StringConstant, public Operators
 {
-    Control& this_control;
-    Semantic& this_semantic;
+    //
+    // A heuristic level for generating code to handle conditional branches
+    // crossing more than 32767 bytes of code. In one test case, 54616 was
+    // required to generate that much code, so 10000 seems like a conservative
+    // value.
+    //
+    enum { TOKEN_WIDTH_REQUIRING_GOTOW = 10000 };
 
-    void CompileClass();
-    void CompileInterface();
+    Control& control;
+    Semantic& semantic;
+    TypeSymbol* unit_type;
 
     int line_number,
         last_label_pc,        // pc for last (closest to end) label
         last_op_pc,           // pc of last operation emitted
-        last_op_nop,          // set if last operation was NOP.
         stack_depth,          // current stack depth;
         max_stack,
-        max_block_depth,
-        last_parameter_index; // set to local variable index of last parameter
-    MethodStack *method_stack;
+        max_block_depth;
+    MethodStack* method_stack;
 
     bool string_overflow,
-         library_method_not_found;
+         library_method_not_found,
+         last_op_goto;        // set if last operation was GOTO or GOTO_W.
+    //
+    // This variable is non-zero only in constructors of local classes; it
+    // gives the offset where variable shadow parameters begin.
+    //
+    u2 shadow_parameter_offset;
 
-    Code_attribute *code_attribute; // code for current method ?
-    LineNumberTable_attribute *line_number_table_attribute;
-    LocalVariableTable_attribute *local_variable_table_attribute;
-    InnerClasses_attribute *inner_classes_attribute;
+    CodeAttribute* code_attribute; // code for current method
+    LineNumberTableAttribute* line_number_table_attribute;
+    LocalVariableTableAttribute* local_variable_table_attribute;
+    InnerClassesAttribute* inner_classes_attribute;
 
     void MethodInitialization()
     {
         last_label_pc = 0;
         last_op_pc = 0;
-        last_op_nop = 0;
-
+        last_op_goto = false;
         stack_depth = 0;
-
         max_stack = 0;
-
-        return;
     }
 
-    void    ProcessAbruptExit(int, TypeSymbol * = NULL);
-    void    CompleteLabel(Label &lab);
-    void    DefineLabel(Label &lab);
-    void    UseLabel(Label &lab, int length, int op_offset);
+    bool ProcessAbruptExit(unsigned, u2, TypeSymbol* = NULL);
+    void CompleteLabel(Label& lab);
+    void DefineLabel(Label& lab);
+    void UseLabel(Label& lab, int length, int op_offset);
 
-    bool IsLabelUsed(Label &lab)
+    bool IsLabelUsed(Label& lab)
     {
-        return (lab.uses.Length() > 0);
-    }
-
-
-    //
-    // see if operand is null. The front-end will have inserted a cast
-    // of null to the present type
-    //
-    bool IsNull(AstExpression *p)
-    {
-        return (p -> CastExpressionCast() ? (p -> CastExpressionCast() -> expression -> Type() == this_control.null_type) : false);
+        return lab.uses.Length() > 0;
     }
 
 
     //
     // Does p refer to a non-null reference type?
     //
-    bool IsReferenceType(TypeSymbol *p)
+    bool IsReferenceType(TypeSymbol* p)
     {
-        return (! (p -> Primitive() || p == this_control.null_type));
+        return ! p -> Primitive() && p != control.null_type;
+    }
+    //
+    // Does p refer to an array type that can be assigned arrays?
+    //
+    bool IsMultiDimensionalArray(TypeSymbol* p)
+    {
+        return p -> num_dimensions > 1 ||
+            p -> base_type == control.Object() ||
+            p -> base_type == control.Cloneable() ||
+            p -> base_type == control.Serializable();
     }
 
 
     //
-    // see if operand is integer type and is zero
+    // See if operand is constant zero (including -0.0).
     //
-    bool IsZero(AstExpression *p)
+    bool IsZero(AstExpression* p)
     {
-        if (p -> IsConstant() && (p -> Type() == this_control.int_type || p -> Type() == this_control.boolean_type))
+        TypeSymbol* type = p -> Type();
+        if (p -> IsConstant() && type != control.String())
         {
-            IntLiteralValue *vp = (IntLiteralValue *) (p -> value);
-            return (vp -> value == 0);
+            if (control.IsSimpleIntegerValueType(type) ||
+                type == control.boolean_type)
+            {
+                return (DYNAMIC_CAST<IntLiteralValue*> (p -> value)) ->
+                    value == 0;
+            }
+            else if (type == control.long_type)
+            {
+                return (DYNAMIC_CAST<LongLiteralValue*> (p -> value)) ->
+                    value == 0;
+            }
+            else if (type == control.float_type)
+            {
+                return (DYNAMIC_CAST<FloatLiteralValue*> (p -> value)) ->
+                    value == 0;
+            }
+            else
+            {
+                assert(type == control.double_type);
+                return (DYNAMIC_CAST<DoubleLiteralValue*> (p -> value)) ->
+                    value == 0;
+            }
         }
+        return false;
+    }
 
+
+    //
+    // See if operand is constant one.
+    //
+    bool IsOne(AstExpression* p)
+    {
+        TypeSymbol* type = p -> Type();
+        if (p -> IsConstant() && type != control.String())
+        {
+            if (control.IsSimpleIntegerValueType(type) ||
+                type == control.boolean_type)
+            {
+                return (DYNAMIC_CAST<IntLiteralValue*> (p -> value)) ->
+                    value == 1;
+            }
+            else if (type == control.long_type)
+            {
+                return (DYNAMIC_CAST<LongLiteralValue*> (p -> value)) ->
+                    value == 1;
+            }
+            else if (type == control.float_type)
+            {
+                return (DYNAMIC_CAST<FloatLiteralValue*> (p -> value)) ->
+                    value == 1;
+            }
+            else
+            {
+                assert(type == control.double_type);
+                return (DYNAMIC_CAST<DoubleLiteralValue*> (p -> value)) ->
+                    value == 1;
+            }
+        }
         return false;
     }
 
@@ -283,69 +392,83 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
     // name (includes local varable, or class variable, or field access)
     // array
     //
-    enum
+    enum VariableCategory
     {
-        LHS_LOCAL =  0, // local variable
-        LHS_ARRAY =  1, // array (of any kind)
-        LHS_FIELD =  2, // instance variable
-        LHS_STATIC = 3, // class variable
-        LHS_METHOD = 4 // access to private variable
+        LOCAL_VAR = 0, // local variable
+        ARRAY_VAR = 1, // array (of any kind)
+        FIELD_VAR = 2, // instance variable
+        STATIC_VAR = 3, // class variable
+        ACCESSED_VAR = 4 // enclosing class field via accessor method
     };
 
-    int GetLhsKind(AstExpression *expression)
+    VariableCategory GetVariableKind(AstExpression* expression)
     {
-        AstAssignmentExpression *assignment = expression -> AssignmentExpressionCast();
-        AstPreUnaryExpression *pre = expression -> PreUnaryExpressionCast();
-        AstPostUnaryExpression *post = expression -> PostUnaryExpressionCast();
-
-        AstExpression *lhs = assignment ? (assignment -> write_method ? (AstExpression *) NULL : assignment -> left_hand_side)
-                                        : pre ? (pre -> write_method ? (AstExpression *) NULL : pre -> expression)
-                                              : post ? (post -> write_method ? (AstExpression *) NULL : post -> expression)
-                                                     : expression;
+        AstAssignmentExpression* assignment =
+            expression -> AssignmentExpressionCast();
+        AstPreUnaryExpression* pre = expression -> PreUnaryExpressionCast();
+        AstPostUnaryExpression* post = expression -> PostUnaryExpressionCast();
 
         //
-        // Find symbol that is associated with expression. If the subexpression has
-        // to be referenced via an access method then the symbol is null
+        // Get the expression containing the variable (avoid accessor methods).
         //
-        AstCastExpression *cast = (lhs ? lhs -> CastExpressionCast() : (AstCastExpression *) NULL);
-        Symbol *sym = cast ? cast -> expression -> symbol : (lhs ? lhs -> symbol : (Symbol *) NULL);
+        AstExpression* lhs = (assignment
+                              ? (assignment -> write_method
+                                 ? (AstExpression*) NULL
+                                 : assignment -> left_hand_side)
+                              : pre
+                              ? (pre -> write_method
+                                 ? (AstExpression*) NULL : pre -> expression)
+                              : post
+                              ? (post -> write_method
+                                 ? (AstExpression*) NULL : post -> expression)
+                              : expression);
+
+        //
+        // Find symbol that is associated with expression. If the
+        // subexpression has to be referenced via an access method then the
+        // symbol is null.
+        //
+        if (lhs && lhs -> CastExpressionCast())
+            lhs = ((AstCastExpression*) lhs) -> expression;
+        while (lhs && lhs -> ParenthesizedExpressionCast())
+            lhs = ((AstParenthesizedExpression*) lhs) -> expression;
+        Symbol* sym = lhs ? lhs -> symbol : (Symbol*) NULL;
 
         //
         // If the expression associated with the left-hand side is null,
-        // then we have an access method.
-        // Otherwise, a left-hand side is either an array access,
-        // a field access or a name. In the case of a FieldAccess
-        // or name, the left-hand side is resolved into a variable.
-        // In the case of an array access, it is resolved into a type.
+        // then we have an access method. Otherwise, a left-hand side is
+        // either an array access, a field access or a name. In the case of
+        // a FieldAccess or name, the left-hand side is resolved into a
+        // variable. For an array access, it is resolved into a type.
         //
-        VariableSymbol *var = (sym ? sym -> VariableCast() : (VariableSymbol *) NULL);
-        return ((! lhs) ? LHS_METHOD
-                        : (! var) ? LHS_ARRAY
-                                  : var -> owner -> MethodCast() ? LHS_LOCAL
-                                                                 : var -> ACC_STATIC() ? LHS_STATIC
-                                                                                       : LHS_FIELD);
+        VariableSymbol* var = (sym ? sym -> VariableCast()
+                               : (VariableSymbol*) NULL);
+        return (! lhs ? ACCESSED_VAR
+                : ! var ? ARRAY_VAR
+                : var -> owner -> MethodCast() ? LOCAL_VAR
+                : var -> ACC_STATIC() ? STATIC_VAR
+                : FIELD_VAR);
     }
 
 
-    int GetTypeWords(TypeSymbol *type)
+    int GetTypeWords(const TypeSymbol* type)
     {
-        return this_control.IsDoubleWordType(type) ? 2 : 1;
+        return control.IsDoubleWordType(type) ? 2 : 1;
     }
 
 
     //
     // methods to load and store values
     //
-    void LoadLocal(int varno, TypeSymbol *);
-    void StoreLocal(int varno, TypeSymbol *);
-    void LoadReference(AstExpression *);
-    void LoadLiteral(LiteralValue *, TypeSymbol *);
-    void LoadImmediateInteger(int);
-    int  LoadVariable(int, AstExpression *);
-    int  LoadArrayElement(TypeSymbol *);
-    void StoreArrayElement(TypeSymbol *);
-    void StoreField(AstExpression *);
-    void StoreVariable(int, AstExpression *);
+    void LoadLocal(int varno, const TypeSymbol*);
+    void StoreLocal(int varno, const TypeSymbol*);
+    void LoadLiteral(LiteralValue*, const TypeSymbol*);
+    void LoadImmediateInteger(i4);
+    int LoadVariable(VariableCategory, AstExpression*, bool = true);
+    int LoadArrayElement(const TypeSymbol*);
+    void StoreArrayElement(const TypeSymbol*);
+    void StoreField(AstExpression*);
+    void StoreVariable(VariableCategory, AstExpression*);
 
     void LoadConstantAtIndex(u2 index)
     {
@@ -359,8 +482,6 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
             PutOp(OP_LDC_W);
             PutU2(index);
         }
-
-        return;
     }
 
     //
@@ -369,281 +490,336 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
     //
     SegmentPool segment_pool;
 
-    Pair *double_constant_pool_index,
-         *integer_constant_pool_index,
-         *long_constant_pool_index,
-         *float_constant_pool_index,
-         *string_constant_pool_index,
+    Pair* double_constant_pool_index;
+    Pair* integer_constant_pool_index;
+    Pair* long_constant_pool_index;
+    Pair* float_constant_pool_index;
+    Pair* string_constant_pool_index;
 
-         utf8_constant_pool_index,
-         class_constant_pool_index;
+    Pair utf8_constant_pool_index;
+    Pair class_constant_pool_index;
 
-    Triplet *name_and_type_constant_pool_index,
-            *fieldref_constant_pool_index,
-            *methodref_constant_pool_index;
+    Triplet* name_and_type_constant_pool_index;
+    Triplet* fieldref_constant_pool_index;
+    Triplet* methodref_constant_pool_index;
 
-    u2 RegisterNameAndType(Utf8LiteralValue *name, Utf8LiteralValue *type_name)
+    u2 RegisterNameAndType(Utf8LiteralValue* name, Utf8LiteralValue* type_name)
     {
-        assert((name != NULL && type_name != NULL) && "null argument to RegisterNameAndType");
+        assert(name && type_name && "null argument to RegisterNameAndType");
 
         if (! name_and_type_constant_pool_index)
-            name_and_type_constant_pool_index = new Triplet(segment_pool, this_control.Utf8_pool.symbol_pool.Length());
+            name_and_type_constant_pool_index =
+                new Triplet(segment_pool,
+                            control.Utf8_pool.symbol_pool.Length());
 
-        u2 index = name_and_type_constant_pool_index -> Image(name -> index, type_name -> index);
+        u2 index = name_and_type_constant_pool_index ->
+            Image(name -> index, type_name -> index);
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
-            name_and_type_constant_pool_index -> Image(name -> index, type_name -> index) = index;
-            constant_pool[i] = new CONSTANT_NameAndType_info(CONSTANT_NameAndType, RegisterUtf8(name), RegisterUtf8(type_name));
+            //
+            // Either the triplet is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            u2 name_index = RegisterUtf8(name);
+            u2 type_index = RegisterUtf8(type_name);
+            index = (u2) constant_pool.Length();
+            name_and_type_constant_pool_index ->
+                Image(name -> index, type_name -> index) = index;
+            constant_pool.SetNext(new CPNameAndTypeInfo(name_index,
+                                                        type_index));
         }
-
         return index;
     }
 
 
-    u2 RegisterFieldref(Utf8LiteralValue *class_name,
-                        Utf8LiteralValue *field_name,
-                        Utf8LiteralValue *field_type_name)
+    //
+    // Register a variable, including full control over the qualifying type
+    // emitted (which is not necessarily the variable's owner).
+    //
+    u2 RegisterFieldref(const TypeSymbol* type, const VariableSymbol* variable)
     {
-        assert((class_name != NULL && field_name != NULL && field_type_name != NULL) && "null argument to RegisterFieldref");
+        Utf8LiteralValue* class_name = type -> fully_qualified_name;
+        Utf8LiteralValue* field_name =
+            variable -> ExternalIdentity() -> Utf8_literal;
+        Utf8LiteralValue* field_type_name = variable -> signature;
+        assert(variable -> owner -> TypeCast());
+        assert(class_name && field_name && field_type_name &&
+               "null argument to RegisterFieldref");
 
         if (! fieldref_constant_pool_index)
-            fieldref_constant_pool_index = new Triplet(segment_pool, this_control.Utf8_pool.symbol_pool.Length());
+            fieldref_constant_pool_index =
+                new Triplet(segment_pool,
+                            control.Utf8_pool.symbol_pool.Length());
 
-        u2 name_type_index = RegisterNameAndType(field_name, field_type_name),
-           index = fieldref_constant_pool_index -> Image(class_name -> index, name_type_index);
+        u2 name_type_index = RegisterNameAndType(field_name, field_type_name);
+        u2 index = fieldref_constant_pool_index ->
+            Image(class_name -> index, name_type_index);
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
-            fieldref_constant_pool_index -> Image(class_name -> index, name_type_index) = index;
-            constant_pool[i] = new CONSTANT_Fieldref_info(CONSTANT_Fieldref, RegisterClass(class_name), name_type_index);
+            //
+            // Either the triplet is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            u2 class_index = RegisterClass(type);
+            index = (u2) constant_pool.Length();
+            fieldref_constant_pool_index ->
+                Image(class_name -> index, name_type_index) = index;
+            constant_pool.SetNext(new CPMemberInfo(CPInfo::CONSTANT_Fieldref,
+                                                   class_index,
+                                                   name_type_index));
         }
-
         return index;
     }
 
-
-    u2 RegisterFieldref(TypeSymbol *type, VariableSymbol *variable_symbol)
+    //
+    // Shortcut when we want the variable's containing type.
+    //
+    u2 RegisterFieldref(const VariableSymbol* variable)
     {
-        assert(variable_symbol -> owner -> TypeCast());
-
-        return RegisterFieldref(type -> fully_qualified_name,
-                                variable_symbol -> ExternalIdentity() -> Utf8_literal,
-                                variable_symbol -> Type() -> signature);
+        return RegisterFieldref(variable -> ContainingType(), variable);
     }
 
-
-    u2 RegisterFieldref(VariableSymbol *variable_symbol)
+    u2 RegisterMethodref(const TypeSymbol* type, const MethodSymbol* method)
     {
-        assert(variable_symbol -> owner -> TypeCast());
-
-        return RegisterFieldref(variable_symbol -> owner -> TypeCast() -> fully_qualified_name,
-                                variable_symbol -> ExternalIdentity() -> Utf8_literal,
-                                variable_symbol -> Type() -> signature);
-    }
-
-
-    u2 RegisterMethodref(ConstantKind kind,
-                         Utf8LiteralValue *class_name,
-                         Utf8LiteralValue *method_name,
-                         Utf8LiteralValue *method_type_name)
-    {
-        assert((class_name != NULL && method_name != NULL && method_type_name != NULL) && "null argument to RegisterMethodref");
+        CPInfo::ConstantPoolTag kind = type -> ACC_INTERFACE()
+            ? CPInfo::CONSTANT_InterfaceMethodref
+            : CPInfo::CONSTANT_Methodref;
+        Utf8LiteralValue* class_name = type -> fully_qualified_name;
+        Utf8LiteralValue* method_name =
+            method -> ExternalIdentity() -> Utf8_literal;
+        Utf8LiteralValue* method_type = method -> signature;
+        assert(class_name && method_name && method_type &&
+               "null argument to RegisterMethodref");
 
         if (! methodref_constant_pool_index)
-            methodref_constant_pool_index = new Triplet(segment_pool, this_control.Utf8_pool.symbol_pool.Length());
+            methodref_constant_pool_index =
+                new Triplet(segment_pool,
+                            control.Utf8_pool.symbol_pool.Length());
 
-        u2 name_type_index = RegisterNameAndType(method_name, method_type_name),
-           index = methodref_constant_pool_index -> Image(class_name -> index, name_type_index);
+        u2 name_type_index = RegisterNameAndType(method_name, method_type);
+        u2 index = methodref_constant_pool_index ->
+            Image(class_name -> index, name_type_index);
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
-            methodref_constant_pool_index -> Image(class_name -> index, name_type_index) = index;
-
-            u2 class_name_index = RegisterClass(class_name);
-            constant_pool[i] = (kind == CONSTANT_Methodref
-                                      ? (cp_info *) new CONSTANT_Methodref_info(CONSTANT_Methodref,
-                                                                                class_name_index,
-                                                                                name_type_index)
-                                      : (cp_info *) new CONSTANT_InterfaceMethodref_info(CONSTANT_InterfaceMethodref,
-                                                                                         class_name_index,
-                                                                                         name_type_index));
+            //
+            // Either the triplet is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            u2 class_name_index = RegisterClass(type);
+            index = (u2) constant_pool.Length();
+            methodref_constant_pool_index -> Image(class_name -> index,
+                                                   name_type_index) = index;
+            constant_pool.SetNext(new CPMemberInfo(kind, class_name_index,
+                                                   name_type_index));
         }
-
         return index;
     }
 
-
-    u2 RegisterMethodref(Utf8LiteralValue *class_name, Utf8LiteralValue *method_name, Utf8LiteralValue *method_type_name)
+    u2 RegisterLibraryMethodref(const MethodSymbol* method)
     {
-        return RegisterMethodref(CONSTANT_Methodref, class_name, method_name, method_type_name);
-    }
-
-    u2 RegisterInterfaceMethodref(Utf8LiteralValue *class_name, Utf8LiteralValue *method_name, Utf8LiteralValue *method_type_name)
-    {
-        return RegisterMethodref(CONSTANT_InterfaceMethodref, class_name, method_name, method_type_name);
-    }
-
-
-    u2 RegisterLibraryMethodref(MethodSymbol *method)
-    {
-        if (method) // The library method must exist. If it is not, flag an error.
-            return RegisterMethodref(CONSTANT_Methodref, method -> containing_type -> fully_qualified_name,
-                                                         method -> ExternalIdentity()-> Utf8_literal,
-                                                         method -> signature);
+        //
+        // The library method must exist. If it does not, flag an error.
+        //
+        if (method)
+            return RegisterMethodref(method -> containing_type, method);
         library_method_not_found = true;
-
         return 0;
     }
 
-    u2 RegisterDouble(DoubleLiteralValue *lit)
+    u2 RegisterDouble(DoubleLiteralValue* lit)
     {
         assert((lit != NULL) && "null argument to RegisterDouble");
 
         if (! double_constant_pool_index)
-            double_constant_pool_index = new Pair(segment_pool, this_control.double_pool.symbol_pool.Length());
+            double_constant_pool_index =
+                new Pair(segment_pool,
+                         control.double_pool.symbol_pool.Length());
 
         u2 index = (*double_constant_pool_index)[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            constant_pool.Next() = NULL;       // extra slop for double-word entry
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            index = (u2) constant_pool.Length();
             (*double_constant_pool_index)[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_Double_info(CONSTANT_Double, lit -> value.HighWord(), lit -> value.LowWord());
+            constant_pool.SetNext(new CPDoubleInfo(lit -> value.HighWord(),
+                                                   lit -> value.LowWord()));
         }
-
         return index;
     }
 
 
-    u2 RegisterInteger(IntLiteralValue *lit)
+    u2 RegisterInteger(IntLiteralValue* lit)
     {
         assert((lit != NULL) && "null argument to RegisterInteger");
 
         if (! integer_constant_pool_index)
-            integer_constant_pool_index = new Pair(segment_pool, this_control.int_pool.symbol_pool.Length());
+            integer_constant_pool_index =
+                new Pair(segment_pool, control.int_pool.symbol_pool.Length());
 
         u2 index = (*integer_constant_pool_index)[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            index = (u2) constant_pool.Length();
             (*integer_constant_pool_index)[lit -> index] = index;
-            int val = lit -> value;
-            u4 bytes = (((unsigned) (val >> 24)) << 24) | ((val >> 16 & 0xff) << 16) | ((val >> 8 & 0xff) ) << 8 | (val & 0xff);
-            constant_pool[i] = new CONSTANT_Integer_info(CONSTANT_Integer, bytes);
+            constant_pool.SetNext(new CPIntegerInfo((u4) lit -> value));
         }
-
         return index;
     }
 
 
-    u2 FindInteger(IntLiteralValue *lit)
+    u2 FindInteger(IntLiteralValue* lit)
     {
-        return (lit && integer_constant_pool_index ? (*integer_constant_pool_index)[lit -> index] : 0);
+        return (lit && integer_constant_pool_index
+                ? (*integer_constant_pool_index)[lit -> index] : 0);
     }
 
 
-    u2 RegisterLong(LongLiteralValue *lit)
+    u2 RegisterLong(LongLiteralValue* lit)
     {
         assert((lit != NULL) && "null argument to RegisterLong");
 
         if (! long_constant_pool_index)
-            long_constant_pool_index = new Pair(segment_pool, this_control.long_pool.symbol_pool.Length());
+            long_constant_pool_index =
+                new Pair(segment_pool, control.long_pool.symbol_pool.Length());
 
         u2 index = (*long_constant_pool_index)[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            constant_pool.Next() = NULL;       // extra slop for double-word entry
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            index = (u2) constant_pool.Length();
             (*long_constant_pool_index)[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_Long_info(CONSTANT_Long, lit -> value.HighWord(), lit -> value.LowWord());
+            constant_pool.SetNext(new CPLongInfo(lit -> value.HighWord(),
+                                                 lit -> value.LowWord()));
         }
-
         return index;
     }
 
 
-    u2 RegisterFloat(FloatLiteralValue *lit)
+    u2 RegisterFloat(FloatLiteralValue* lit)
     {
         assert((lit != NULL) && "null argument to RegisterFloat");
 
         if (! float_constant_pool_index)
-            float_constant_pool_index = new Pair(segment_pool, this_control.float_pool.symbol_pool.Length());
+            float_constant_pool_index =
+                new Pair(segment_pool, control.float_pool.symbol_pool.Length());
 
         u2 index = (*float_constant_pool_index)[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            index = (u2) constant_pool.Length();
             (*float_constant_pool_index)[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_Float_info(CONSTANT_Float, lit -> value.Word());
+            constant_pool.SetNext(new CPFloatInfo(lit -> value.Word()));
         }
-
         return index;
     }
 
 
-    u2 RegisterUtf8(Utf8LiteralValue *lit)
+    u2 RegisterUtf8(Utf8LiteralValue* lit)
     {
-        assert((lit != NULL) && "null argument to RegisterUtf8");
+        assert(lit != NULL && "null argument to RegisterUtf8");
 
         u2 index = utf8_constant_pool_index[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            index = (u2) constant_pool.Length();
             utf8_constant_pool_index[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_Utf8_info(CONSTANT_Utf8, lit -> value, lit -> length);
+            constant_pool.SetNext(new CPUtf8Info(lit -> value,
+                                                 lit -> length));
+            if (lit -> length > 0xffff)
+                string_overflow = true;
         }
-
         return index;
     }
 
-
-    u2 RegisterString(Utf8LiteralValue *lit)
+    u2 RegisterName(const NameSymbol* sym)
     {
-        assert((lit != NULL) && "null argument to RegisterString");
+        return RegisterUtf8(sym -> Utf8_literal);
+    }
 
-        //
-        // The domain of these maps is an index in the constant_pool.
-        // For a valid program, the size of the constant pool is limited
-        // to 65k elements.
-        //
+    u2 RegisterString(Utf8LiteralValue* lit)
+    {
+        assert(lit && "null argument to RegisterString");
         if (! string_constant_pool_index)
-            string_constant_pool_index = new Pair(segment_pool, this_control.Utf8_pool.symbol_pool.Length());
+            string_constant_pool_index =
+                new Pair(segment_pool, control.Utf8_pool.symbol_pool.Length());
 
         u2 index = (*string_constant_pool_index)[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            u2 utf_index = RegisterUtf8(lit);
+            index = (u2) constant_pool.Length();
             (*string_constant_pool_index)[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_String_info(CONSTANT_String, RegisterUtf8(lit));
+            constant_pool.SetNext(new CPStringInfo(utf_index));
         }
-
         return index;
     }
 
-
-    u2 RegisterClass(Utf8LiteralValue *lit)
+    u2 RegisterClass(const TypeSymbol* type)
     {
-        assert((lit != NULL) && "null argument to RegisterClass");
-
+        Utf8LiteralValue* lit = type -> num_dimensions
+            ? type -> signature : type -> fully_qualified_name;
+        assert(type && lit && "null argument to RegisterClass");
         u2 index = class_constant_pool_index[lit -> index];
         if (index == 0)
         {
-            int i = constant_pool.NextIndex(); // We cannot use the variable "index" here as it might be truncated
-            index = i;
+            //
+            // Either the pair is not in the constant pool, or the constant
+            // pool overflowed.
+            //
+            u2 utf_index = RegisterUtf8(lit);
+            index = (u2) constant_pool.Length();
             class_constant_pool_index[lit -> index] = index;
-            constant_pool[i] = new CONSTANT_Class_info(CONSTANT_Class, RegisterUtf8(lit));
+            constant_pool.SetNext(new CPClassInfo(utf_index));
+            //
+            // All nested classes must appear in the InnerClasses attribute, as
+            // well.
+            //
+            if (type -> IsNested())
+            {
+                if (! inner_classes_attribute)
+                {
+                    inner_classes_attribute = new InnerClassesAttribute
+                        (RegisterUtf8(control.InnerClasses_literal));
+                    AddAttribute(inner_classes_attribute);
+                }
+                AccessFlags flags = type -> Flags();
+                //
+                // Types are never marked strictfp in .class files. This can be
+                // reverse engineered from <init> and <clinit> methods; the
+                // only time when these methods don't exist is in interfaces
+                // that have no runtime expression evaluations, so no
+                // information is lost by clearing the flag.
+                //
+                flags.ResetACC_STRICTFP();
+                inner_classes_attribute ->
+                    AddInnerClass(index, type -> IsLocal() ? 0
+                                  : RegisterClass(type -> ContainingType()),
+                                  type -> Anonymous() ? 0
+                                  : RegisterName(type -> name_symbol), flags);
+            }
         }
-
         return index;
     }
 
@@ -651,140 +827,145 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
     //
     //  Methods to write out the byte code
     //
-    Deprecated_attribute *CreateDeprecatedAttribute()
+    DeprecatedAttribute* CreateDeprecatedAttribute()
     {
-        return new Deprecated_attribute(RegisterUtf8(this_control.Deprecated_literal));
+        return new DeprecatedAttribute(RegisterUtf8
+                                       (control.Deprecated_literal));
     }
 
-
-    Synthetic_attribute *CreateSyntheticAttribute()
+    SyntheticAttribute* CreateSyntheticAttribute()
     {
-        return new Synthetic_attribute(RegisterUtf8(this_control.Synthetic_literal));
+        return new SyntheticAttribute(RegisterUtf8(control.Synthetic_literal));
+    }
+
+    EnclosingMethodAttribute* CreateEnclosingMethodAttribute(MethodSymbol* sym)
+    {
+        u2 attr_name = RegisterUtf8(control.EnclosingMethod_literal);
+        u2 type_index = RegisterClass(sym -> containing_type);
+        u2 name_type_index =
+            (sym -> name_symbol == control.block_init_name_symbol ||
+             sym -> name_symbol == control.clinit_name_symbol) ? 0
+            : RegisterNameAndType(sym -> ExternalIdentity() -> Utf8_literal,
+                                  sym -> signature);
+        return new EnclosingMethodAttribute(attr_name, type_index,
+                                            name_type_index);
     }
 
 
     //
     // Methods to generate expressions.
     //
-    int  EmitExpression(AstExpression *);
-    int  EmitArrayCreationExpression(AstArrayCreationExpression *);
-    int  EmitAssignmentExpression(AstAssignmentExpression *, bool);
-    int  EmitBinaryExpression(AstBinaryExpression *);
-    int  EmitCastExpression(AstCastExpression *);
-    void EmitCast(TypeSymbol *, TypeSymbol *);
-    int  EmitClassInstanceCreationExpression(AstClassInstanceCreationExpression *, bool);
-    int  EmitConditionalExpression(AstConditionalExpression *);
-    int  EmitFieldAccess(AstFieldAccess *);
-    AstExpression *VariableExpressionResolution(AstExpression *);
-    TypeSymbol *VariableTypeResolution(AstExpression *, VariableSymbol *);
-    TypeSymbol *MethodTypeResolution(AstExpression *, MethodSymbol *);
-    void EmitFieldAccessLhsBase(AstExpression *);
-    void EmitFieldAccessLhs(AstExpression *);
-    void EmitMethodInvocation(AstMethodInvocation *);
-    void EmitNewArray(int, TypeSymbol *);
-    int  EmitPostUnaryExpression(AstPostUnaryExpression *, bool);
-    void EmitPostUnaryExpressionArray(AstPostUnaryExpression *, bool);
-    void EmitPostUnaryExpressionField(int, AstPostUnaryExpression *, bool);
-    void EmitPostUnaryExpressionSimple(int, AstPostUnaryExpression *, bool);
-    int  EmitPreUnaryExpression(AstPreUnaryExpression *, bool);
-    void EmitPreUnaryIncrementExpression(AstPreUnaryExpression *expression, bool);
-    void EmitPreUnaryIncrementExpressionArray(AstPreUnaryExpression *expression, bool);
-    void EmitPreUnaryIncrementExpressionField(int, AstPreUnaryExpression *expression, bool);
-    void EmitPreUnaryIncrementExpressionSimple(int, AstPreUnaryExpression *expression, bool);
-    void EmitThisInvocation(AstThisCall *);
-    void EmitSuperInvocation(AstSuperCall *);
-    void ConcatenateString(AstBinaryExpression *);
-    void AppendString(AstExpression *);
-    void EmitStringAppendMethod(TypeSymbol *);
-    void GenerateAccessMethod(MethodSymbol *);
-    void ChangeStack (int);
-    void ResolveAccess(AstExpression *);
-    int  GenerateClassAccess(AstFieldAccess *);
-    void GenerateClassAccessMethod(MethodSymbol *);
+    int EmitExpression(AstExpression*, bool = true);
+    int EmitName(AstName*, bool);
+    int EmitArrayCreationExpression(AstArrayCreationExpression*, bool = true);
+    int EmitAssignmentExpression(AstAssignmentExpression*, bool);
+    int EmitBinaryExpression(AstBinaryExpression*, bool);
+    int EmitInstanceofExpression(AstInstanceofExpression*, bool);
+    int EmitCastExpression(AstCastExpression*, bool);
+    void EmitCast(TypeSymbol*, TypeSymbol*);
+    int EmitClassCreationExpression(AstClassCreationExpression*, bool);
+    int EmitConditionalExpression(AstConditionalExpression*, bool);
+    int EmitFieldAccess(AstFieldAccess*, bool = true);
+    AstExpression* VariableExpressionResolution(AstExpression*);
+    TypeSymbol* VariableTypeResolution(AstExpression*, VariableSymbol*);
+    TypeSymbol* MethodTypeResolution(AstExpression*, MethodSymbol*);
+    void EmitFieldAccessLhsBase(AstExpression*);
+    void EmitFieldAccessLhs(AstExpression*);
+    int EmitMethodInvocation(AstMethodInvocation*, bool);
+    void EmitNewArray(unsigned, const TypeSymbol*);
+    int EmitPostUnaryExpression(AstPostUnaryExpression*, bool);
+    void EmitPostUnaryExpressionArray(AstPostUnaryExpression*, bool);
+    void EmitPostUnaryExpressionField(VariableCategory,
+                                      AstPostUnaryExpression*, bool);
+    void EmitPostUnaryExpressionSimple(VariableCategory,
+                                       AstPostUnaryExpression*, bool);
+    int EmitPreUnaryExpression(AstPreUnaryExpression*, bool);
+    void EmitPreUnaryIncrementExpression(AstPreUnaryExpression*, bool);
+    void EmitPreUnaryIncrementExpressionArray(AstPreUnaryExpression*, bool);
+    void EmitPreUnaryIncrementExpressionField(VariableCategory,
+                                              AstPreUnaryExpression*, bool);
+    void EmitPreUnaryIncrementExpressionSimple(VariableCategory,
+                                               AstPreUnaryExpression*, bool);
+    void EmitThisInvocation(AstThisCall*);
+    void EmitSuperInvocation(AstSuperCall*);
+    void ConcatenateString(AstBinaryExpression*, bool);
+    void AppendString(AstExpression*, bool);
+    void EmitStringAppendMethod(TypeSymbol*);
+    void ChangeStack(int);
+    void ResolveAccess(AstExpression*);
+    int GenerateClassAccess(AstClassLiteral*, bool);
+    void GenerateClassAccessMethod();
+    void GenerateAssertVariableInitializer(TypeSymbol*, VariableSymbol*);
+    void EmitCheckForNull(AstExpression* expr, bool = true);
 
     //
     // Methods to process statements
     //
-    void CompileConstructor(AstConstructorDeclaration *, Tuple<AstVariableDeclarator *> &);
+    void CompileConstructor(AstConstructorDeclaration*,
+                            Tuple<AstVariableDeclarator*>&, bool);
 
-    void BeginMethod(int, MethodSymbol *);
-    void EndMethod(int, MethodSymbol *);
-    void DeclareField(VariableSymbol *);
-    void InitializeClassVariable(AstVariableDeclarator *);
-    void InitializeInstanceVariable(AstVariableDeclarator *);
-    void InitializeArray(TypeSymbol *, AstArrayInitializer *);
-    void DeclareLocalVariable(AstVariableDeclarator *);
-    void EmitStatement(AstStatement *);
-    void EmitReturnStatement(AstReturnStatement *);
-    void EmitSynchronizedStatement(AstSynchronizedStatement *);
-    void EmitBlockStatement(AstBlock *);
-    void EmitStatementExpression(AstExpression *);
-    void EmitSwitchStatement(AstSwitchStatement *);
-    void EmitTryStatement(AstTryStatement *);
-    void EmitBranchIfExpression(AstExpression *, bool, Label &);
-    void CompleteCall(MethodSymbol *, int, TypeSymbol * = NULL);
+    void BeginMethod(int, MethodSymbol*);
+    void EndMethod(int, MethodSymbol*);
+    void DeclareField(VariableSymbol*);
+    void InitializeVariable(AstVariableDeclarator*);
+    void InitializeArray(const TypeSymbol*, AstArrayInitializer*, bool = true);
+    void DeclareLocalVariable(AstVariableDeclarator*);
+    bool EmitStatement(AstStatement*);
+    void EmitReturnStatement(AstReturnStatement*);
+    bool EmitSynchronizedStatement(AstSynchronizedStatement*);
+    bool EmitBlockStatement(AstBlock*);
+    void EmitStatementExpression(AstExpression*);
+    bool EmitSwitchStatement(AstSwitchStatement*);
+    bool EmitSwitchBlockStatement(AstSwitchBlockStatement*, bool);
+    void CloseSwitchLocalVariables(AstBlock*, u2 op_start);
+    void EmitTryStatement(AstTryStatement*);
+    void EmitAssertStatement(AstAssertStatement*);
+    void EmitForeachStatement(AstForeachStatement*);
+    void EmitBranchIfExpression(AstExpression*, bool, Label&,
+                                AstStatement* = NULL);
+    void EmitBranch(Opcode, Label&, AstStatement* = NULL);
+    int CompleteCall(MethodSymbol*, int, bool = true, TypeSymbol* = NULL);
 
+    AstExpression* StripNops(AstExpression*);
+    bool IsNop(AstBlock*);
 
-    //
-    // called when expression has been parenthesized to removed
-    // parantheses and expose true structure.
-    //
-    AstExpression *UnParenthesize(AstExpression *expr)
-    {
-        while(expr -> ParenthesizedExpressionCast())
-            expr = expr -> ParenthesizedExpressionCast() -> expression;
-
-        return expr;
-    }
-
-
-    void EmitArrayAccessLhs(AstArrayAccess *expression)
-    {
-        LoadReference(expression -> base);
-        EmitExpression(expression -> expression);
-
-        return;
-    }
-
-
-    int EmitArrayAccessRhs(AstArrayAccess *expression)
+    void EmitArrayAccessLhs(AstArrayAccess* expression);
+    int EmitArrayAccessRhs(AstArrayAccess* expression)
     {
         EmitArrayAccessLhs(expression); // get array address and index
         return LoadArrayElement(expression -> Type());
     }
 
-
-    void EmitBranch(unsigned int opc, Label& lab)
+    // Return the OP_IF... bytecode that has the opposite meaning
+    Opcode InvertIfOpCode(Opcode opc)
     {
-        PutOp(opc);
-        UseLabel(lab, 2, 1);
+        //
+        // Unfortunately, the JVMS does not nicely specify symmetric opcodes;
+        // we must treat even-odd and odd-even pairs differently.
+        //
+        if (opc >= OP_IFNULL)
+        {
+            assert(opc <= OP_IFNONNULL);
+            return (Opcode) (opc ^ 1);
+        }
+        assert(OP_IFEQ <= opc && opc <= OP_IF_ACMPNE);
+        return (Opcode) (((opc + 1) ^ 1) - 1);
+    }
 
-        return;
+    void GenerateReturn(TypeSymbol* type)
+    {
+        PutOp((control.IsSimpleIntegerValueType(type) ||
+               type == control.boolean_type) ? OP_IRETURN
+              : type == control.long_type ? OP_LRETURN
+              : type == control.float_type ? OP_FRETURN
+              : type == control.double_type ? OP_DRETURN
+              : OP_ARETURN);
     }
 
 
-    void GenerateReturn(TypeSymbol *type)
-    {
-        PutOp(this_control.IsSimpleIntegerValueType(type) || type == this_control.boolean_type
-                  ? OP_IRETURN
-                  : type == this_control.long_type
-                          ? OP_LRETURN
-                          : type == this_control.float_type
-                                  ? OP_FRETURN
-                                  : type == this_control.double_type
-                                          ? OP_DRETURN
-                                          : OP_ARETURN);
-        return;
-    }
+    void PutOp(Opcode);
 
-
-#ifdef JIKES_DEBUG
-    void PrintCode();
-#endif
-
-    void PutOp(unsigned char opc);
-
-    void PutOpWide(unsigned char opc, u2 var);
+    void PutOpWide(Opcode, u2 var);
 
     void PutOpIINC(u2 var, int val);
 
@@ -794,36 +975,24 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
     void PutI1(i1 i)
     {
         code_attribute -> AddCode(i & 0xff);
-
-        return;
     }
-
 
     void PutI2(i2 i)
     {
         code_attribute -> AddCode((i >> 8) & 0xff);
         code_attribute -> AddCode(i & 0xff);
-
-        return;
     }
-
 
     void PutU1(u1 u)
     {
         code_attribute -> AddCode(u & 0xff);
-
-        return;
     }
-
 
     void PutU2(u2 u)
     {
         code_attribute -> AddCode((u >> 8) & 0xff);
         code_attribute -> AddCode(u & 0xff);
-
-        return;
     }
-
 
     void PutU4(u4 u)
     {
@@ -831,32 +1000,9 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
         code_attribute -> AddCode((u >> 16) & 0xff);
         code_attribute -> AddCode((u >>  8) & 0xff);
         code_attribute -> AddCode(u & 0xff);
-
-        return;
     }
 
-
-    //
-    // emit NOP. The NOP can be replaced by the next instruction if
-    // optional is set; otherwise it must be kept.
-    //
-    void PutNop(int optional)
-    {
-        PutOp(OP_NOP);
-
-        //
-        // this optimization is causing more trouble than it's worth.
-        // latest problem (27 jan 97) was reported by Derek, in that
-        // nop just before label definition, resulted in operation generated
-        // after label def. being moved before the def! Since it's such a sin
-        // to generate junk code, disable the "nop" optimization.
-        //  if (optional) last_op_nop = 1;
-        //
-
-        return;
-    }
-
-    void FinishCode(TypeSymbol *);
+    void FinishCode();
 
     void Reset()
     {
@@ -868,7 +1014,7 @@ class ByteCode : public ClassFile, public StringConstant, public Operators
     }
 
 public:
-    ByteCode(TypeSymbol *);
+    ByteCode(TypeSymbol*);
 
     ~ByteCode()
     {
@@ -883,17 +1029,12 @@ public:
         delete methodref_constant_pool_index;
     }
 
-    inline void GenerateCode()
-    {
-        if (unit_type -> ACC_INTERFACE())
-             CompileInterface();
-        else CompileClass();
-    }
+    void GenerateCode();
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif
+#endif // bytecode_INCLUDED
 

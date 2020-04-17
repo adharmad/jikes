@@ -1,29 +1,22 @@
-*** TBD for Jikes 1.13 release:
+*** TBD for Jikes future releases:
 
-Fix build under IRIX, it failed in
-1.12 because of iconv prototype mismatch.
-Same goes for Red Hat 7.0.
-(FIXED)
+It is not clear if iconv is only a little
+broken or totally busted.
 
-Include java.g file in tar ball.
-This was omitted in the 1.12 release.
-(FIXED)
+(it was totally busted by glibc2.2 as compared to
+glibc 2.1.x which was under development churn, some
+quick hackery was done for 1.14, I think I got it working
+on all platforms, but we'll have to wait and see... also
+working on a major streaming rewrite for 1.15... actually
+hoped for 1.14 but found more stuff broken at every turn.)
 
-Add RPM spec file to the tar ball.
-This was omitted in the 1.12 release.
-(FIXED)
+Also, would it be better to convert a bunch
+of chars in a buffer instead of doing them
+one at a time?
 
-
-Fix namespaces. People need
-to be able to compile on
-systems that require namespace
-support. Many versions of gcc
-have bugs that keep namespaces
-from working.
-
-./configure HAVE_JIKES_NAMESPACE=1
-
-(FIXED)
+(it would, this is part of the stream changes cabbey was
+working on before he lost his raid, just got access back,
+and will continue to investigate.)
 
 
 Use new casting operations instead of C style
@@ -52,24 +45,8 @@ assert( ap != NULL );
 B*  bp2 = dynamic_cast<B*>(ap);
 assert( bp2 != NULL );
 
+(I think this is done.)
 
-(FIXED : still need to actually use them in #ifdefs)
-
-
-
-
-Manually generate a list of #include deps for
-each of the .c files in the src dir and include
-then in Makefile.am. We do not want to use
-the automatic depcomp feature of automake.
-
-(FIXED)
-
-
-The website needs to be made available as a CVS module.
-That will make changing and tracking changes far easier.
-
-(FIXED)
 
 
 Fix the problems with @files demonstrated by
@@ -82,80 +59,8 @@ to be done in a more general stream class not
 one that does lexing. That way, it could also
 be used in the Option class to process @ files.
 
-(FIXED, reverted since it caused other problems )
-
-
-Add new floating point emulation support code.
-
-(FIXED)
-
-
-
-Fix problems with double class use of
-static const, gcc 3.0 pukes unless
-there is an external def too.
-
-(FIXED)
-
-
-
-
-*** Things that will not be done in 1.13
-
-
-
-It is not clear if iconv is only a little
-broken or totally busted.
-
-More testing is needed to figure out
-if this is an endian issue. It works
-on an Intel box but fails on a Solaris
-Sparc so I think it is a byte order issue.
-
-http://bugzilla.redhat.com/bugzilla/show_bug.cgi?id=19647
-
-While some iconv tests fail under Red Hat 6.2, they
-all fail on Red Hat 7.0, which is what this bug
-report is talking about.
-
-Also, would it be better to convert a bunch
-of chars in a buffer instead of doing them
-one at a time?
-
-Check into the problems discussed with the
-onceagain boolean. Could this blow up if
-we don't set ch? Also what if the
-ErrorDecode..() method return true but
-the earlier assign to ch returned 0,
-that would set ch to zero right? I
-don't think that is really what we
-would have wanted.
-
-(Will not fix in this release)
-
-
-
-Add a configure check to make sure
-folks do not attempt to build under
-Cygwin with the -mno-cygwin flag.
-(Will not fix in this release)
-
-
-
-Fix problem with debug line number tables. Newer
-versions of java don't like our line numbers.
-This is commonly known as "Jikes and JPDA".
-
-
-
-Add the src/m4 subdir contents to
-the .tar file.
-
-(Don't fix, people will not be
-able to regenerate a working
-./configure with autoconf 2.13
-anyway, so this can be delayed)
-
+(FIXED but reverted since it caused other problems,
+which remain uninvestigated )
 
 
 If a zip file can not be found,
@@ -169,18 +74,49 @@ is "invalid" (implies it was corrupted).
 
 
 
+
+*** Things that have not been done yet
+but should be done at some point....
+
+
+remove code from header files. (please)
+
+
+Add a configure check to make sure
+folks do not attempt to build under
+Cygwin with the -mno-cygwin flag.
+(Will not fix in this release)
+
+
+
+Add the src/m4 subdir contents to
+the .tar file.
+
+(Don't fix, people will not be
+able to regenerate a working
+./configure with autoconf 2.13
+anyway, so this can be delayed)
+
+
+
 *** TBD at some point:
 
 Add test cases for the typos in error.cpp that were fixed
 just before the 1.12 release. In fact, it would be nice if we
 could generate a test case for every error condition and
-
 test the compiler output.
+
 
 Check into the fix for bug 102, we reverted it because of
 crashes, but it would be nice to look into the fix again.
 
-Drop OLDCSO support from the compiler.
+
+Drop OLDCSO support from the compiler, but not untill after
+major public discusion... there are a number of major users who
+swear by this feature as much as some of us swore *at* it.
+
+
+Stop and smell the roses.
 
 
 Why does jikes treat the catching of exceptions

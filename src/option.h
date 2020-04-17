@@ -1,10 +1,10 @@
-// $Id: option.h,v 1.29 2001/02/24 22:19:24 mdejong Exp $
+// $Id: option.h,v 1.42 2002/11/27 17:34:59 ericb Exp $ -*- c++ -*-
 //
 // This software is subject to the terms of the IBM Jikes Compiler
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 1998, 1999, 2000, 2001, 2002 International Business
+// Machines Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
 
@@ -12,27 +12,24 @@
 #define option_INCLUDED
 
 #include "platform.h"
-#include "code.h"
 #include "tuple.h"
 #include "jikesapi.h"
 
-//FIXME: include stuff
-//#include <ctype.h>
-
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
+
+class OptionError;
+class Ostream;
 
 class ArgumentExpander
 {
 public:
 
     int argc;
-    char **argv;
+    char** argv;
 
-    ArgumentExpander(int, char **);
-
-    ArgumentExpander(Tuple<char> &);
+    ArgumentExpander(int, char **, Tuple<OptionError *>& bad_options);
 
     ~ArgumentExpander()
     {
@@ -41,7 +38,8 @@ public:
         delete [] argv;
     }
 
-    bool ArgumentExpanded(Tuple<char *> &, char *);
+    void ExpandAtFileArgument(Tuple<char *>& arguments, char* file_name,
+                              Tuple<OptionError *>& bad_options);
 };
 
 
@@ -57,30 +55,44 @@ public:
 class OptionError
 {
 public:
-    int kind;
-    wchar_t *name;
-
-    OptionError(int kind_, char *str) : kind(kind_)
+    enum OptionErrorKind
     {
-        int length = strlen(str);
-        name = new wchar_t[length + 1];
-        for (int i = 0; i < length; i++)
-            name[i] = str[i];
-        name[length] = U_NULL;
+        INVALID_OPTION,
+        MISSING_OPTION_ARGUMENT,
+        INVALID_SOURCE_ARGUMENT,
+        INVALID_TARGET_ARGUMENT,
+        INVALID_K_OPTION,
+        INVALID_K_TARGET,
+        INVALID_TAB_VALUE,
+        INVALID_P_ARGUMENT,
+        INVALID_DIRECTORY,
+        INVALID_AT_FILE,
+        NESTED_AT_FILE,
+        UNSUPPORTED_ENCODING,
+        UNSUPPORTED_OPTION,
+        DISABLED_OPTION
+    };
 
+    OptionError(OptionErrorKind kind_, const char *str) : kind(kind_)
+    {
+        name = new char[strlen(str) + 1];
+        strcpy(name, str);
         return;
     }
 
     ~OptionError() { delete [] name; }
+
+    const wchar_t* GetErrorMessage();
+
+private:
+    OptionErrorKind kind;
+    char *name;
 };
 
-class Ostream;
-
 class Option: public JikesOption
- {
+{
 
 #ifdef WIN32_FILE_SYSTEM
-
     char main_disk, *current_directory[128];
 
 public:
@@ -99,7 +111,7 @@ public:
     {
         SetCurrentDirectory(current_directory[main_disk]);
     }
-    
+
     char *GetMainCurrentDirectory()
     {
         return current_directory[main_disk];
@@ -107,44 +119,48 @@ public:
 
     void SaveCurrentDirectoryOnDisk(char c);
 
-#endif
+#endif // WIN32_FILE_SYSTEM
 
 public:
-         
+
     Tuple<KeywordMap> keyword_map;
-    Tuple<OptionError *> bad_options;
 
     int first_file_index;
 
+#ifdef JIKES_DEBUG
     int debug_trap_op;
 
     bool debug_dump_lex,
          debug_dump_ast,
          debug_unparse_ast,
          debug_unparse_ast_debug,
+         debug_comments,
          debug_dump_class,
-         nocleanup,
+         debug_trace_stack_change;
+#endif // JIKES_DEBUG
+
+    bool nocleanup,
          incremental,
          makefile,
-	 dependence_report,
+         dependence_report,
          bytecode,
          full_check,
          unzip,
          dump_errors,
          errors,
-         comments,
-         pedantic;
+         pedantic,
+         noassert;
 
     char *dependence_report_name;
 
-    Option(ArgumentExpander &);
+    Option(ArgumentExpander &, Tuple<OptionError *>&);
 
     ~Option();
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif /* option_INCLUDED */
+#endif // option_INCLUDED
 

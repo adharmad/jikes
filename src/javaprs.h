@@ -1,27 +1,30 @@
-// $Id: javaprs.h,v 1.16 2001/01/05 09:13:20 mdejong Exp $
-// This software is subject to the terms of the IBM Jikes Compiler
-// License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// $Id: javaprs.h,v 1.30 2004/03/05 13:12:25 ericb Exp $
+// DO NOT MODIFY THIS FILE - it is generated using jikespg on java.g.
+//
+// This software is subject to the terms of the IBM Jikes Compiler Open
+// Source License Agreement available at the following URL:
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2003 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
+
 #ifndef javaprs_INCLUDED
 #define javaprs_INCLUDED
+
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
+#endif
 
 #define SCOPE_REPAIR
 #define DEFERRED_RECOVERY
 #define FULL_DIAGNOSIS
 #define SPACE_TABLES
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
-#endif
-
 class LexStream;
 
 class javaprs_table
 {
+    int dummy; /* Prevents empty class from causing compile error. */
 public:
     static int original_state(int state) { return -base_check[state]; }
     static int asi(int state) { return asb[original_state(state)]; }
@@ -49,7 +52,7 @@ public:
     static const unsigned short scope_suffix[];
     static const unsigned short scope_lhs[];
     static const unsigned char  scope_la[];
-    static const unsigned char  scope_state_set[];
+    static const unsigned short scope_state_set[];
     static const unsigned short scope_rhs[];
     static const unsigned short scope_state[];
     static const unsigned short in_symb[];
@@ -59,34 +62,16 @@ public:
         return base_action[state + sym];
     }
 
-    static int t_action(int act, int sym, LexStream *stream)
+    static int t_action(int state, int sym, LexStream *)
     {
-        act = base_action[act];
-        int i = act + sym;
-
-        act = term_action[term_check[i] == sym ? i : act];
-
-        if (act > LA_STATE_OFFSET)
-        {
-            for (TokenObject tok = stream -> Peek();
-                 ;
-                 tok = stream -> Next(tok))
-            {
-               act -= LA_STATE_OFFSET;
-               sym = stream -> Kind(tok);
-               i = act + sym;
-               act = term_action[term_check[i] == sym ? i : act];
-               if (act <= LA_STATE_OFFSET)
-                   break;
-            } 
-        }
-
-        return act;
+        return term_action[term_check[base_action[state]+sym] == sym
+                               ? base_action[state] + sym
+                               : base_action[state]];
     }
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
 #endif /* javaprs_INCLUDED */

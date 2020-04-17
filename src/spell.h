@@ -1,28 +1,35 @@
-// $Id: spell.h,v 1.7 2001/01/05 09:13:21 mdejong Exp $
+// $Id: spell.h,v 1.11 2002/12/05 21:56:13 ericb Exp $ -*- c++ -*-
 //
 // This software is subject to the terms of the IBM Jikes Compiler
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1999, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 1999, 2000, 2001, 2002 International Business
+// Machines Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
+
 #ifndef spell_INCLUDED
 #define spell_INCLUDED
 
 #include "platform.h"
 #include "case.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
+//
+// This is a helper class which hueristically determines the probability
+// that one string is a match for another.  The static function Index
+// returns an integer from 0 to 10; for example, a return of 6 indicates
+// a 60% chance that one string is a misspelled match of the other.
+//
 class Spell
 {
     static inline int Min(int x, int y) { return (x < y ? x : y); }
 
 public:
-    static int Index(wchar_t *str1, wchar_t *str2)
+    static int Index(const wchar_t* str1, const wchar_t* str2)
     {
         int len1 = wcslen(str1),
             len2 = wcslen(str2);
@@ -130,9 +137,9 @@ public:
     }
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif // #ifndef spell_INCLUDED
+#endif // spell_INCLUDED
 

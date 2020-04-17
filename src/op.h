@@ -1,29 +1,29 @@
-// $Id: op.h,v 1.8 2001/01/05 09:13:20 mdejong Exp $
+// $Id: op.h,v 1.18 2004/01/20 04:10:26 ericb Exp $ -*- c++ -*-
 //
 // This software is subject to the terms of the IBM Jikes Compiler
 // License Agreement available at the following URL:
-// http://www.ibm.com/research/jikes.
-// Copyright (C) 1996, 1998, International Business Machines Corporation
-// and others.  All Rights Reserved.
+// http://ibm.com/developerworks/opensource/jikes.
+// Copyright (C) 1996, 2004 IBM Corporation and others.  All Rights Reserved.
 // You must accept the terms of that agreement to use this software.
 //
+
 #ifndef op_INCLUDED
 #define op_INCLUDED
 
 #include "platform.h"
 #include "tuple.h"
 
-#ifdef	HAVE_JIKES_NAMESPACE
-namespace Jikes {	// Open namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+namespace Jikes { // Open namespace Jikes block
 #endif
 
-class cp_info;
+class ConstantPool;
 
 // code dealing with describing and listing byte code
 class Operators
 {
 public:
-    enum operators
+    enum Opcode
     {
         OP_NOP = 0x00,
         OP_ACONST_NULL = 0x01,
@@ -208,7 +208,7 @@ public:
         OP_GETFIELD = 0xb4,
         OP_PUTFIELD = 0xb5,
         OP_INVOKEVIRTUAL = 0xb6,
-        OP_INVOKENONVIRTUAL = 0xb7,
+        OP_INVOKESPECIAL = 0xb7,
         OP_INVOKESTATIC = 0xb8,
         OP_INVOKEINTERFACE = 0xb9,
         OP_XXXUNUSEDXXX = 0xba,
@@ -231,59 +231,69 @@ public:
         OP_HARDWARE = 0xff
     };
 
-    static void opdmp(Tuple<cp_info *> &, Tuple<u1> &);
-
 protected:
-
     static int stack_effect[];
 
-private:
+#ifdef JIKES_DEBUG
+public:
+    static void OpDmp(const ConstantPool&, const Tuple<u1>&);
+    static int OpDesc(Opcode, const char** name, const char** desc);
 
-    enum
+private:
+    enum OpInfo
     {
-        INFO_NONE = 0,
-        INFO_LOCAL = 1,
-        INFO_CONST = 2,
-        INFO_DONE  = 3
+        INFO_NONE,
+        INFO_LOCAL,
+        INFO_CONST,
+        INFO_DONE,
+        INFO_WIDE
     };
 
-    static void opdesc (int opc, char **name, char **desc);
-
-    inline static signed char get_i1(Tuple<u1> &code, int pc)
+    inline static i1 GetAndSkipI1(const Tuple<u1>& code, unsigned& pc)
     {
-        return code[pc];
+        return (i1) code[pc++];
     }
 
-    inline static short get_i2(Tuple<u1> &code, int pc)
+    inline static i2 GetAndSkipI2(const Tuple<u1>& code, unsigned& pc)
     {
-        return  code[pc] << 8 | code[pc + 1];
+        i2 s = code[pc++] << 8;
+        return s | code[pc++];
     }
 
-    inline static int get_i4(Tuple<u1> &code, int pc)
+    inline static i4 GetAndSkipI4(const Tuple<u1>& code, unsigned& pc)
     {
-        return  code[pc] << 24 | code[pc + 1] << 16 | code[pc + 2] << 8 | code[pc + 3];
+        i4 i = code[pc++] << 24;
+        i |= code[pc++] << 16;
+        i |= code[pc++] << 8;
+        return i | code[pc++];
     }
 
-    inline static unsigned get_u1(Tuple<u1> &code, int pc)
+    inline static u1 GetAndSkipU1(const Tuple<u1>& code, unsigned& pc)
     {
-        return code[pc];
+        return code[pc++];
     }
 
-    inline static unsigned get_u2(Tuple<u1> &code, int pc)
+    inline static u2 GetAndSkipU2(const Tuple<u1>& code, unsigned& pc)
     {
-        return (unsigned) (code[pc] << 8 | code[pc + 1]);
+        u2 u = code[pc++] << 8;
+        return u | code[pc++];
     }
 
-    inline static unsigned get_u4(Tuple<u1> &code, int pc)
+    inline static u4 GetAndSkipU4(const Tuple<u1>& code, unsigned& pc)
     {
-        return (unsigned) (code[pc] << 24 | code[pc + 1] << 16 | code[pc + 2] << 8 | code[pc + 3]);
+        u4 u = code[pc++] << 24;
+        u |= code[pc++] << 16;
+        u |= code[pc++] << 8;
+        return u | code[pc++];
     }
 
-    static void opline(Tuple<cp_info *> &, char *, int, int, char *, char *, char *, int, int);
+    static void OpLine(const ConstantPool&, char, int, const char*,
+                       char*, const char*, OpInfo, unsigned);
+#endif // JIKES_DEBUG
 };
 
-#ifdef	HAVE_JIKES_NAMESPACE
-}			// Close namespace Jikes block
+#ifdef HAVE_JIKES_NAMESPACE
+} // Close namespace Jikes block
 #endif
 
-#endif
+#endif // op_INCLUDED
